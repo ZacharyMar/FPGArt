@@ -17,6 +17,7 @@ module ps2
 	)
 	(
 		start,         // transmit instrucions to device
+		send_enable,   // HIGH = command sent is enabling streaming, LOW = command send is disabling streaming
 		reset,         // FSM reset signal --> active LOW
 		CLOCK_50,      //clock source
 		PS2_CLK,       //ps2_clock signal inout
@@ -57,8 +58,8 @@ output reg [UPPER_BITS-1:0] cell_y;
 //instruction define, users can charge the instruction byte here for other purpose according to ps/2 mouse datasheet.
 //the MSB is of parity check bit, that's when there are odd number of 1's with data bits, it's value is '0',otherwise it's '1' instead.
 
-parameter enable_byte =9'b011110100;
-
+parameter enable_byte =9'b011110100; // Host to mouse signal F4 --> enables streaming from mouse
+parameter disable_byte = 9'b111110101; // Host to mouse signal F5 --> disables streaming from mouse
 
 //=======================================================
 //  REG/WIRE declarations
@@ -210,7 +211,7 @@ begin
 		// Input movement in +x dir
 		if($signed(x_latch) >= THRESHOLD)
 		begin
-			// Adjust movement with deadzone
+			// Set x_latch back one cell
 			x_latch <= x_latch - CELL_TICKS;
 			// Not at right boundary
 			if(oX_cell != (SCREEN_WIDTH / CELL_DIMENSION) - 1)
@@ -222,7 +223,7 @@ begin
 		// Input movement in -x dir
 		else if($signed(x_latch) <= -THRESHOLD)
 		begin
-			// Adjust movement with deadzone
+			// Set x_latch back one cell
 			x_latch <= x_latch + CELL_TICKS;
 			// Not at left boundary
 			if(oX_cell != 0)
@@ -235,7 +236,7 @@ begin
 		// Input movement in +y dir
 		if($signed(y_latch) >= THRESHOLD)
 		begin
-			// Adjust with deadzone
+			// set y_latch back one cell
 			y_latch <= y_latch - CELL_TICKS;
 			// Not at bottom boundary
 			if(oY_cell != (SCREEN_HEIGHT / CELL_DIMENSION) - 1)
@@ -247,7 +248,7 @@ begin
 		// Input movement in -y dir
 		else if($signed(y_latch) <= -THRESHOLD)
 		begin
-			// Adjust movement with deadzone
+			// set y_latch back one cell
 			y_latch <= y_latch + CELL_TICKS;
 			// Not at top boundary
 			if(oY_cell != 0)
@@ -268,13 +269,15 @@ begin
   else
      delay <= 4'b0000;
 end
-//transmit data to ps2 device;eg. 0xF4
+//transmit data to ps2 device
 always@(negedge ps2_clk_in)
 begin
   if (cur_state == trans)
      data_out_reg <= {1'b0,data_out_reg[9:1]};
   else
-     data_out_reg <= {enable_byte,1'b0};
+	  // Load command to be sent to device into register
+	  if (send_enable) data_out_reg <= {enable_byte,1'b0}; // send_enable HIGH = command to stream
+	  else data_out_reg <= {disable_byte,1'b0}; // send_enable LOW = command to disable streaming
 end
 //transmit byte length counter
 always@(negedge ps2_clk_in)
