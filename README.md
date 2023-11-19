@@ -7,7 +7,7 @@ Drawing tool for the DE1-SoC FPGA and VGA output created using Verilog. The prog
 TODO:
 - ~Research using PS2 mouse interface~
 - ~Create mouse interface module~
-- Draw schematics for FSM + datapath
+- ~Draw schematics for FSM + datapath~
 - Simulate module
 - In lab testing
 
