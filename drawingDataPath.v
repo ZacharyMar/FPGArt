@@ -5,13 +5,28 @@ module drawingDataPath
 		parameter SCREEN_WIDTH = 640,
 		parameter SCREEN_HEIGHT = 480
 	)
-	(iResetn, iClk, iX_cell, iY_cell, iColour, iState, oX_pixel, oY_pixel, oDone, oColour, oMove, oPlot);
+	(
+		iResetn, // Reset datapath to initial values
+		iClk, // clock source
+		iX_cell, // Input of current x cell position from mouse
+		iY_cell, // Input of current y cell position from mouse
+		iColour, // Input of colour from user
+		iState, 	// Current state from FSM
+		oX_pixel, // x pixel output to VGA
+		oY_pixel, // y pixel output to VGA
+		oDone, 	 // Signal asserted when counter related processes are done
+		oColour,  // Colour output to VGA
+		oMove, 	 // Signal asserted when mouse movement is detected
+		oPlot,    // Signal output to VGA to draw to monitor
+		oEnableMouse, // Signal asserted to enable (1) or disable (0) mouse streaming
+		oStartTransmission // Signal asserted to initiate host-to-mouse communication
+	);
 	parameter CELL_DIMENSION = 5;
 	parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
 	
 	// Inputs
 	input wire iResetn, iClk;
-	// States: IDLE - 0, MOVE - 1, WAIT - 2, CLEAN - 3, DRAW - 4, ERASE - 5, CLEAR - 6
+	// States: IDLE - 0, MOVE - 1, WAIT - 2, CLEAN - 3, DRAW - 4, ERASE - 5, CLEAR_WAIT - 6, CLEAR - 7
 	input wire [2:0] iState;
 	input wire [UPPER_BITS-1:0] iX_cell, iY_cell;
 	// For now take 3 bit colour
@@ -19,8 +34,8 @@ module drawingDataPath
 	
 	// Outputs
 	output reg [$clog2(SCREEN_WIDTH > SCREEN_HEIGHT ? SCREEN_WIDTH:SCREEN_HEIGHT):0] oX_pixel, oY_pixel;
-	output reg oDone, oMove, oPlot;
-	output wire [2:0] oColour;
+	output reg oDone, oMove, oPlot, oEnableMouse, oStartTransmission;
+	output reg [2:0] oColour;
 	
 	// Regs
 	// Counters used to fill in cell
@@ -55,15 +70,28 @@ module drawingDataPath
 					x_border_count <= 0;
 					y_border_count <= 0;
 					oPlot <= 0;
+					// Enable streaming of mouse
+					oEnableMouse <= 1;
+					oStartTransmission <= 1;
 				end
 				
 			else
 				begin
-					// Check if there is movement
-					if (prev_x_cell != iX_cell || prev_y_cell != iY_cell)
+					// For now, each state does not require new transmission of host to mouse
+					// Can change later of state specific interactions
+					oStartTranmission <= 0;
+					
+					// Handle each state
+					// Idle state - central state
+					if (iState == 3'd0)
+						// Reset signals
 						begin
-							// Do not override this information when entering states to animate cursor
-							if (iState != 3'd1 && iState != 3'd2 && iState != 3'd3)
+							oDone <= 0;
+							oPlot <= 0;
+							
+							// Check if there is movement
+							if (prev_x_cell != iX_cell || prev_y_cell != iY_cell)
+								// Assert transition to move state
 								begin
 									oMove <= 1;
 									x_init_pixel <= iX_cell*5;
@@ -73,14 +101,17 @@ module drawingDataPath
 									// Border is yellow
 									oColour <= 3'b110;
 								end
+							// Prev and current position match
+							else 
+								begin
+									oMove <= 0;
+									// Set current pixel to top left of draw zone of cell
+									x_init_pixel <= iX_cell*5 + 1;
+									y_init_pixel <= iY_cell*5 + 1;
+								end
 						end
-					else omove <= 0;
-					
-					// Handle each state
-					// Idle state
-					if (iState == 3'd0) oDone <= 0;
 					// Move state
-					else if (iState == 3'd1)
+					else if (iState == 3'd1 && !oDone)
 						begin
 							// Use counters to draw new outline
 							oX_pixel <= x_init_pixel + x_border_count;
@@ -92,7 +123,7 @@ module drawingDataPath
 							else oPlot <= 0;
 							
 							// Increment counters
-							if (y_border_count == 3'd4)
+							if (y_border_count == 3'd4 && x_border_count == 3'd4)
 								begin
 									oDone <= 1;
 									// Reset counts for clean state to use
@@ -117,7 +148,7 @@ module drawingDataPath
 						end
 						
 					// Clean state
-					else if (iState == 3'd3)
+					else if (iState == 3'd3 && !oDone)
 						begin
 							// Use prev measurement
 							oX_pixel <= (prev_x_cell*5) + x_border_count;
@@ -128,7 +159,7 @@ module drawingDataPath
 							else oPlot <= 0;
 							
 							// Increment counters
-							if (y_border_count == 3'd4)
+							if (y_border_count == 3'd4 && x_border_count == 3'd4)
 								begin
 									oDone <= 1;
 									// Reset counts
@@ -147,13 +178,86 @@ module drawingDataPath
 						end
 					
 					// Draw state
-					else if (iState == 3'd4)
+					else if (iState == 3'd4 && !oDone)
+						begin
+							// Send pixel to draw
+							oX_pixel <= x_init_pixel + x_count;
+							oY_pixel <= y_init_pixel + y_count;
+							// Draw each pixel
+							oPlot <= 1;
+							// Colour outputted is what user selected
+							oColour <= iColour;
+							
+							// Increment counters
+							if (y_count == 2'd2 && x_count == 2'd2)
+								begin
+									oDone <= 1;
+									y_count <= 0;
+									x_count <= 0;
+								end
+							else if (x_count == 2'd2)
+								begin
+									x_count <= 0;
+									y_count <= y_count + 1;
+								end
+							else x_count <= x_count + 1;
+						end
 					
-					// Erase state
-					else if (iState == 3'd5)
+					// Erase state - handled the same as draw except colour is white
+					else if (iState == 3'd5 && !oDone)
+						begin
+							// Send pixel to draw
+							oX_pixel <= x_init_pixel + x_count;
+							oY_pixel <= y_init_pixel + y_count;
+							// Draw each pixel
+							oPlot <= 1;
+							// Colour outputted is white to erase
+							oColour <= 3'b111;
+							
+							// Increment counters
+							if (y_count == 2'd2 && x_count == 2'd2)
+								begin
+									oDone <= 1;
+									y_count <= 0;
+									x_count <= 0;
+								end
+							else if (x_count == 2'd2)
+								begin
+									x_count <= 0;
+									y_count <= y_count + 1;
+								end
+							else x_count <= x_count + 1;
+						end
 					
 					// Clear state
-					else if (iState == 3'd6)
+					else if (iState == 3'd7 && !oDone)
+						begin
+							oX_pixel <= x_clear_count;
+							oY_pixel <= y_clear_count;
+							oPlot <= 1;
+							
+							// Colour is black on gridlines - coordinate has 0, 4, 5 or 9 in one's digit
+							if (x_clear_count % 10 == 0 || x_clear_count % 10 == 4 || x_clear_count % 10 == 5 || x_clear_count % 10 == 9 || y_clear_count % 10 == 0 || y_clear_count % 10 == 4 || y_clear_count % 10 == 5 || y_clear_count % 10 == 9)
+								 begin
+									oColour <= 3'b000;
+								 end
+							 // Draw white everywhere else
+							 else oColour <= 3'b111;
+							 
+							 // Increment counters
+							 if (y_clear_count == (SCREEN_HEIGHT - 1) && x_clear_count == (SCREEN_WIDTH - 1))
+								begin
+									oDone <= 1;
+									y_clear_count <= 0;
+									x_clear_count <= 0;
+								end
+							else if (x_clear_count == SCREEN_WIDTH - 1)
+								begin
+									x_clear_count <= 0;
+									y_clear_count <= y_clear_count + 1;
+								end
+							else x_clear_count <= x_clear_count + 1;
+						end
 				end
 		end
 
