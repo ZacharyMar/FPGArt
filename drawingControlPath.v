@@ -1,6 +1,15 @@
 `timescale 1 ns / 1ns
 
-module drawingControlPath(iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove, oState);
+module drawingControlPath(
+	iResetn, // FSM reset
+	iClk, // Source clock
+	iBtnL, // Asserted if LMB pressed
+	iBtnR, // Asserted if RMB pressed
+	iDone, // Signal from datapath indicating process is complete
+	iClear, // Signal from user to clear screen
+	iMove, // Signal from datapath indicating mouse movement detected
+	oState // Output current state
+	);
 	// Inputs
 	input wire iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove;
 	
@@ -11,13 +20,14 @@ module drawingControlPath(iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove, oSt
 	reg [2:0] cur_state, nex_state;
 	
 	// States
-	localparam IDLE = 3'd0,
-				  MOVE = 3'd1,
-				  WAIT = 3'd2,
-				  CLEAN = 3'd3,
-				  DRAW = 3'd4,
-				  ERASE = 3'd5,
-				  CLEAR = 3'd6;
+	localparam IDLE 			= 3'd0,
+				  MOVE 			= 3'd1,
+				  WAIT 			= 3'd2,
+				  CLEAN 			= 3'd3,
+				  DRAW 			= 3'd4,
+				  ERASE 			= 3'd5,
+				  CLEAR_WAIT 	= 3'd6,
+				  CLEAR 			= 3'd7;
 				  
 	// Next state logic
 	always@(*)
@@ -29,7 +39,7 @@ module drawingControlPath(iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove, oSt
 						if (iMove) nex_state = MOVE;
 						else if (iBtnL) nex_state = DRAW;
 						else if (iBtnR) nex_state = ERASE;
-						else if (iClear) nex_state = CLEAR;
+						else if (iClear) nex_state = CLEAR_WAIT;
 						else nex_state = IDLE;
 					end
 					
@@ -40,21 +50,6 @@ module drawingControlPath(iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove, oSt
 						if (iDone) nex_state = WAIT;
 						else nex_state = MOVE;
 					end
-				DRAW:
-					begin
-						if (iDone) nex_state = IDLE;
-						else nex_state = DRAW;
-					end
-				ERASE:
-					begin
-						if (iDone) nex_state = IDLE;
-						else nex_state = ERASE;
-					end
-				CLEAR:
-					begin
-						if (iDone) nex_state = IDLE;
-						else nex_state = CLEAR;
-					end
 				// State for setting delay of animation (can delay to be in sync with monitor
 				WAIT: nex_state = CLEAN;
 				// Cleans the previous fragments from animation	
@@ -63,6 +58,32 @@ module drawingControlPath(iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove, oSt
 						if (iDone) nex_state = IDLE;
 						else nex_state = CLEAN;
 					end
+					
+					
+				DRAW:
+					begin
+						if (iDone) nex_state = IDLE;
+						else nex_state = DRAW;
+					end
+					
+				ERASE:
+					begin
+						if (iDone) nex_state = IDLE;
+						else nex_state = ERASE;
+					end
+				
+				// Wait for release of key to clear
+				CLEAR_WAIT:
+					begin
+						if (!iClear) nex_state = CLEAR;
+						else nex_state = CLEAR_WAIT;
+					end
+				CLEAR:
+					begin
+						if (iDone) nex_state = IDLE;
+						else nex_state = CLEAR;
+					end
+				
 				// Should default to idle state
 				default: nex_state = IDLE;
 			endcase
