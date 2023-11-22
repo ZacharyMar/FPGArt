@@ -4,8 +4,8 @@ module ps2_test
 	#(
 		parameter SCREEN_WIDTH = 640,
 		parameter SCREEN_HEIGHT = 480,
-		parameter CELL_TICKS = 10, // Width of each cell in mouse ticks (DPI)
-		parameter HYSTERESIS = 2 // Delay or deadzone for mouse movement to registed
+		parameter CELL_TICKS = 15, // Width of each cell in mouse ticks (DPI)
+		parameter HYSTERESIS = 5 // Delay or deadzone for mouse movement to registed
 	)
 	(
 		CLOCK_50,
