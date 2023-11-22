@@ -4,7 +4,8 @@ Drawing tool for the DE1-SoC FPGA and VGA output created using Verilog. The prog
 
 ## Outline
 #### PS2 Mouse Interface
-##### VERIFIED WORKING IN LAB
+✅VERIFIED WORKING IN LAB✅
+
 <ins>Input parameters:</ins>
 - SCREEN_WIDTH: length of screen in the horizontal direction in pixels
 - SCREEN_HEIGHT: length of screen in the vertical direction in pixels
@@ -12,6 +13,7 @@ Drawing tool for the DE1-SoC FPGA and VGA output created using Verilog. The prog
 - HYSTERESIS: Used to calculate deadzone/threshold of mouse movement (i.e minimum amount of movement required to be taken as valid input)
 
 <ins>Port declarations:</ins>
+
 Input:
 - start: singal asserted to initiate host to mouse communication
 - send_enable: signal asserted to disable (0) or enable (1) mouse streaming
