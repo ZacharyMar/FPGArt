@@ -12,8 +12,8 @@ module ps2
 	#(
 		parameter SCREEN_WIDTH = 640,
 		parameter SCREEN_HEIGHT = 480,
-		parameter CELL_TICKS = 10, // Width of each cell in mouse ticks (DPI)
-		parameter HYSTERESIS = 2 // Delay or deadzone for mouse movement to register
+		parameter CELL_TICKS = 15, // Width of each cell in mouse ticks (DPI)
+		parameter HYSTERESIS = 5 // Delay or deadzone for mouse movement to register
 	)
 	(
 		start,         // transmit instrucions to device
@@ -26,7 +26,7 @@ module ps2
 		button_right,  //right button press display
 		button_middle, //middle button press display
 		cell_x,         // Unsigned integer for selected cell in x direction
-		cell_y          // Unsigned integer for selected cell in y direction
+		cell_y,          // Unsigned integer for selected cell in y direction
 	);
 
 //=======================================================
@@ -43,8 +43,9 @@ parameter THRESHOLD = CELL_TICKS+HYSTERESIS;
 //=======================================================
 
 input start;
+input send_enable;
 input reset;
-input CLOCK_50;
+input CLOCK_50;  
 
 inout PS2_CLK;
 inout PS2_DAT;
@@ -73,7 +74,7 @@ reg [8:0] clk_div;
 reg [9:0] data_out_reg;
 reg [32:0] shift_reg; // Data read from mouse
 reg       leflatch,riglatch,midlatch;
-reg       ps2_clk_in,ps2_clk_syn1,ps2_dat_in,ps2_dat_syn1;
+reg       ps2_clk_in,ps2_clk_syn1,ps2_dat_in,ps2_dat_syn1, transmission_active;
 wire      clk,ps2_dat_syn0,ps2_clk_syn0,ps2_dat_out,ps2_clk_out,flag;
 reg [LOWER_BITS-1:0] x_latch;
 reg [LOWER_BITS-1:0] y_latch;
@@ -154,13 +155,22 @@ begin
               end
      trans   :begin
               if  (byte_count == 4'b1010)
-                  nex_state = listen;
-              else    
-                  nex_state = trans;
-                  clk_en = 1'b0;
-                  data_en = 1'b1;
+						begin
+							transmission_active = 0;
+							nex_state = listen;
+						end
+              else   
+						begin
+							nex_state = trans;
+							transmission_active = 1;
+							clk_en = 1'b0;
+							data_en = 1'b1;
+						end
               end
-     default :    nex_state = listen;
+     default :begin
+					   nex_state = listen;
+						transmission_active = 0;
+					end
    endcase
 end
 //idle counter
@@ -197,6 +207,18 @@ begin
       oX_cell <= 0;
       oY_cell <= 0;
    end
+	// Reset on host to mouse data
+	else if (transmission_active)
+		begin
+			leflatch <= 1'b0;
+			riglatch <= 1'b0;
+			midlatch <= 1'b0;
+			x_latch  <= 0;
+			y_latch  <= 0;
+			// Default cell position is (0,0)
+			oX_cell <= 0;
+			oY_cell <= 0;
+		end
    else if (count == 8'b00011110 && (data_length_count[5] == 1'b1 || data_length_count[4] == 1'b1))
    begin
       leflatch <= shift_reg[1];
@@ -238,11 +260,11 @@ begin
 		begin
 			// set y_latch back one cell
 			y_latch <= y_latch - CELL_TICKS;
-			// Not at bottom boundary
-			if(oY_cell != (SCREEN_HEIGHT / CELL_DIMENSION) - 1)
+			// Not at top boundary
+			if(oY_cell != 0)
 			begin
 				// Increment cell down
-				oY_cell <= oY_cell + 1'b1; 
+				oY_cell <= oY_cell - 1'b1; 
 			end
 		end
 		// Input movement in -y dir
@@ -250,11 +272,11 @@ begin
 		begin
 			// set y_latch back one cell
 			y_latch <= y_latch + CELL_TICKS;
-			// Not at top boundary
-			if(oY_cell != 0)
+			// Not at bottom boundary
+			if(oY_cell != (SCREEN_HEIGHT / CELL_DIMENSION) - 1)
 			begin
 				// Increment cell up
-				oY_cell <= oY_cell - 1'b1; 
+				oY_cell <= oY_cell + 1'b1; 
 			end
 		end
 		
