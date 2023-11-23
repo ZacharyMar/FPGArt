@@ -5,6 +5,7 @@ Drawing tool for the DE1-SoC FPGA and VGA output created using Verilog. The prog
 ## Outline
 #### PS2 Mouse Interface
 ✅VERIFIED WORKING IN LAB✅
+
 Responsible for getting input from mouse and translating it to useable data in the datapath and FSM.
 
 <ins>Input parameters:</ins>
@@ -34,6 +35,7 @@ Output:
 
 #### Drawing FSM
 NEED TO SIMULATE
+
 Responsible for controling the data used to draw to the output monitor.
 
 <ins>Port Declarations:</ins>
@@ -64,6 +66,7 @@ NOTE: Priority of entering states from IDLE are as follows: MOVE, DRAW, ERASE, C
 
 #### Drawing Datapath
 NEED TO SIMULATE
+
 Responsible for generating output signals to VGA adapter to correctly draw what the user expects.
 
 <ins>Input Parameters:</ins>
