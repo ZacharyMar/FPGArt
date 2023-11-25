@@ -34,7 +34,7 @@ Output:
 - cell_y: unsigned integer value representing selected cell in the y direction
 
 #### Drawing FSM
-NEED TO SIMULATE
+🟢WORKING SIMULATION
 
 Responsible for controling the data used to draw to the output monitor.
 
@@ -65,7 +65,7 @@ Output:
 NOTE: Priority of entering states from IDLE are as follows: MOVE, DRAW, ERASE, CLEAR_WAIT (i.e if multiple inputs are asserted at the same time, priority is given to state first in the list)
 
 #### Drawing Datapath
-NEED TO SIMULATE
+🟢WORKING SIMULATION
 
 Responsible for generating output signals to VGA adapter to correctly draw what the user expects.
 
@@ -92,6 +92,11 @@ Outputs:
 - oPlot: signal asserted to draw to monitor, outputted to VGA adapter
 - oEnableMouse: signal asserted to enable (1) or disable (0) mouse streaming
 - oStartTransmission: signal asserted to initiate host-to-mouse communication
+
+#### Drawing Circuit
+TODO:
+- Create top level module that instantiates the FSM and datapath for drawing functionality
+- Connect to VGA adapter, mouse interface, and pins on DE1-SoC
 
 #### VGA Adapter
 TODO:
