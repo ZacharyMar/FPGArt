@@ -54,9 +54,10 @@ module drawingDataPath
 		begin
 			if(!iResetn)
 				begin
-					ox_pixel <= 0;
-					oy_pixel <= 0;
+					oX_pixel <= 0;
+					oY_pixel <= 0;
 					oDone <= 0;
+					oMove <= 0;
 					// Default colour is white
 					oColour <= 3'b111;
 					x_count <= 0;
@@ -79,7 +80,7 @@ module drawingDataPath
 				begin
 					// For now, each state does not require new transmission of host to mouse
 					// Can change later of state specific interactions
-					oStartTranmission <= 0;
+					oStartTransmission <= 0;
 					
 					// Handle each state
 					// Idle state - central state
@@ -143,8 +144,9 @@ module drawingDataPath
 						begin
 							// Add delay here if needed
 							oDone <= 0;
+							oPlot <= 0;
 							// Set colour for clean state to grid colour - black for now
-							oColour <= 3'b000 
+							oColour <= 3'b000; 
 						end
 						
 					// Clean state
@@ -162,6 +164,7 @@ module drawingDataPath
 							if (y_border_count == 3'd4 && x_border_count == 3'd4)
 								begin
 									oDone <= 1;
+									oMove <= 0;
 									// Reset counts
 									x_border_count <= 0;
 									y_border_count <= 0;
