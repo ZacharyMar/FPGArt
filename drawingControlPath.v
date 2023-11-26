@@ -1,33 +1,42 @@
 `timescale 1 ns / 1ns
 
 module drawingControlPath(
-	iResetn, // FSM reset
-	iClk, // Source clock
-	iBtnL, // Asserted if LMB pressed
-	iBtnR, // Asserted if RMB pressed
-	iDone, // Signal from datapath indicating process is complete
-	iClear, // Signal from user to clear screen
-	iMove, // Signal from datapath indicating mouse movement detected
-	oState // Output current state
+	iResetn, 				// FSM reset
+	iClk, 					// Source clock
+	iBtnL, 					// Asserted if LMB pressed
+	iBtnR, 					// Asserted if RMB pressed
+	iDone, 					// Signal from datapath indicating process is complete
+	iClear, 					// Signal from user to clear screen
+	iMove, 					// Signal from datapath indicating mouse movement detected
+	oState, 					// Output current state
+	oEnableMouse, 			// Signal asserted to enable (1) or disable (0) mouse streaming
+	oStartTransmission 	// Signal asserted to initiate host-to-mouse communication
 	);
 	// Inputs
 	input wire iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove;
 	
 	// Output
-	output wire [2:0] oState;
+	output wire [3:0] oState;
+	output reg oEnableMouse, oStartTransmission;
 	
 	// Regs
-	reg [2:0] cur_state, nex_state;
+	reg [3:0] cur_state, nex_state;
 	
 	// States
-	localparam IDLE 			= 3'd0,
-				  MOVE 			= 3'd1,
-				  WAIT 			= 3'd2,
-				  CLEAN 			= 3'd3,
-				  DRAW 			= 3'd4,
-				  ERASE 			= 3'd5,
-				  CLEAR_WAIT 	= 3'd6,
-				  CLEAR 			= 3'd7;
+	localparam IDLE 			= 4'd0,
+				  MOVE 			= 4'd1,
+				  WAIT 			= 4'd2,
+				  CLEAN 			= 4'd3,
+				  DRAW 			= 4'd4,
+				  ERASE 			= 4'd5,
+				  CLEAR_WAIT 	= 4'd6,
+				  CLEAR 			= 4'd7,
+				  RESET_MOUSE 	= 4'd8;
+	  
+   // Steps to trigger enable/disable of mouse:
+	// 1. Have a buffer state before the state you want the mouse enabled/disabled
+	// 2. In the buffer state, set the transmission signal high and the according command
+	// 3. Transition to the desired state. In the state, set the transmission signal low.
 				  
 	// Next state logic
 	always@(*)
@@ -80,9 +89,12 @@ module drawingControlPath(
 					end
 				CLEAR:
 					begin
-						if (iDone) nex_state = IDLE;
+						if (iDone) nex_state = RESET_MOUSE;
 						else nex_state = CLEAR;
 					end
+					
+				// After reset of mouse, always go to IDLE state
+				RESET_MOUSE: nex_state = IDLE;
 				
 				// Should default to idle state
 				default: nex_state = IDLE;
@@ -90,13 +102,33 @@ module drawingControlPath(
 		end
 		
 	// Output signal logic
-	// Might add signal to disable mouse data streaming
+	always@(*)
+		begin
+			// Default signal values
+			oStartTransmission = 0;
+			oEnableMouse = 1;
+			
+			case (cur_state)				
+				// Send signal to disable mouse before clearing screen
+				CLEAR_WAIT:
+					begin
+						oStartTransmission = 1;
+						oEnableMouse = 0;
+					end
+				// Send signal to enable mouse
+				RESET_MOUSE:
+					begin
+						oStartTransmission = 1;
+						oEnableMouse = 1;
+					end
+			endcase
+		end
 		
 	// Current state register
 	always@(posedge iClk, negedge iResetn)
 		begin
 			// Maybe change reset to clearing screen
-			if(!iResetn) cur_state <= IDLE;
+			if(!iResetn) cur_state <= RESET_MOUSE; // Forces reset on mouse before entering idle state
 			else cur_state <= nex_state;
 		end
 		
