@@ -2,39 +2,38 @@
 
 module drawingDataPath
 	#(
-		parameter SCREEN_WIDTH = 640,
-		parameter SCREEN_HEIGHT = 480
+	parameter SCREEN_WIDTH = 640,
+	parameter SCREEN_HEIGHT = 480
 	)
 	(
-		iResetn, // Reset datapath to initial values
-		iClk, // clock source
-		iX_cell, // Input of current x cell position from mouse
-		iY_cell, // Input of current y cell position from mouse
-		iColour, // Input of colour from user
-		iState, 	// Current state from FSM
-		oX_pixel, // x pixel output to VGA
-		oY_pixel, // y pixel output to VGA
-		oDone, 	 // Signal asserted when counter related processes are done
-		oColour,  // Colour output to VGA
-		oMove, 	 // Signal asserted when mouse movement is detected
-		oPlot,    // Signal output to VGA to draw to monitor
-		oEnableMouse, // Signal asserted to enable (1) or disable (0) mouse streaming
-		oStartTransmission // Signal asserted to initiate host-to-mouse communication
+	iResetn, 	// Reset datapath to initial values
+	iClk, 		// clock source
+	iX_cell, 	// Input of current x cell position from mouse
+	iY_cell, 	// Input of current y cell position from mouse
+	iColour, 	// Input of colour from user
+	iState, 		// Current state from FSM
+	oX_pixel,	// x pixel output to VGA
+	oY_pixel, 	// y pixel output to VGA
+	oDone, 	 	// Signal asserted when counter related processes are done
+	oColour,  	// Colour output to VGA
+	oMove, 	 	// Signal asserted when mouse movement is detected
+	oPlot,    	// Signal output to VGA to draw to monitor
 	);
 	parameter CELL_DIMENSION = 5;
 	parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
 	
 	// Inputs
 	input wire iResetn, iClk;
-	// States: IDLE - 0, MOVE - 1, WAIT - 2, CLEAN - 3, DRAW - 4, ERASE - 5, CLEAR_WAIT - 6, CLEAR - 7
-	input wire [2:0] iState;
+	// States: IDLE - 0, MOVE - 1, WAIT - 2, CLEAN - 3, DRAW - 4, ERASE - 5, CLEAR_WAIT - 6, CLEAR - 7, RESET_MOUSE - 8
+	input wire [3:0] iState;
 	input wire [UPPER_BITS-1:0] iX_cell, iY_cell;
 	// For now take 3 bit colour
 	input wire [2:0] iColour;
 	
 	// Outputs
-	output reg [$clog2(SCREEN_WIDTH > SCREEN_HEIGHT ? SCREEN_WIDTH:SCREEN_HEIGHT):0] oX_pixel, oY_pixel;
-	output reg oDone, oMove, oPlot, oEnableMouse, oStartTransmission;
+	output reg [$clog2(SCREEN_WIDTH):0] oX_pixel;
+	output reg [$clog2(SCREEN_HEIGHT):0] oY_pixel;
+	output reg oDone, oMove, oPlot;
 	output reg [2:0] oColour;
 	
 	// Regs
@@ -48,6 +47,8 @@ module drawingDataPath
 	reg [UPPER_BITS-1:0] prev_x_cell, prev_y_cell;
 	// Counter used for drawing
 	reg [2:0] x_border_count, y_border_count;
+	// Flag used to indicate first loop iteration
+	reg initialize;
 	
 	
 	always@(posedge iClk, negedge iResetn)
@@ -70,170 +71,205 @@ module drawingDataPath
 					prev_y_cell <= 0;
 					x_border_count <= 0;
 					y_border_count <= 0;
+					initialize <= 1;
 					oPlot <= 0;
-					// Enable streaming of mouse
-					oEnableMouse <= 1;
-					oStartTransmission <= 1;
 				end
 				
 			else
-				begin
-					// For now, each state does not require new transmission of host to mouse
-					// Can change later of state specific interactions
-					oStartTransmission <= 0;
+				begin					
+					// Check whether mouse movement was made -- asynchronous to state
+					if (prev_x_cell != iX_cell || prev_y_cell != iY_cell)
+						// Assert transition to move state
+						begin
+							oMove <= 1;
+						end
+					// Prev and current position match
+					else 
+						begin
+							oMove <= 0;
+						end
 					
 					// Handle each state
 					// Idle state - central state
-					if (iState == 3'd0)
+					if (iState == 4'd0)
 						// Reset signals
 						begin
 							oDone <= 0;
 							oPlot <= 0;
-							
-							// Check if there is movement
-							if (prev_x_cell != iX_cell || prev_y_cell != iY_cell)
-								// Assert transition to move state
+							initialize <= 1;
+						end
+					// Move state
+					else if (iState == 4'd1 && !oDone)
+						begin
+							// First loop iterarion - initialize values
+							if (initialize)
 								begin
-									oMove <= 1;
+									oColour <= 3'b110;
 									x_init_pixel <= iX_cell*5;
 									y_init_pixel <= iY_cell*5;
 									x_border_count <= 0;
 									y_border_count <= 0;
-									// Border is yellow
-									oColour <= 3'b110;
+									initialize <= 0;
 								end
-							// Prev and current position match
-							else 
+							// Not first loop, draw to screen
+							else
 								begin
-									oMove <= 0;
-									// Set current pixel to top left of draw zone of cell
-									x_init_pixel <= iX_cell*5 + 1;
-									y_init_pixel <= iY_cell*5 + 1;
+									// Use counters to draw new outline
+									oX_pixel <= x_init_pixel + x_border_count;
+									oY_pixel <= y_init_pixel + y_border_count;
+									
+									
+									// Only plot if pixel is on border
+									if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
+									else oPlot <= 0;
+									
+									// Increment counters
+									if (y_border_count == 3'd4 && x_border_count == 3'd4)
+										begin
+											oDone <= 1;
+											// Reset counts for clean state to use
+											x_border_count <= 0;
+											y_border_count <= 0;
+										end
+									else if (x_border_count == 3'd4) 
+										begin
+											x_border_count <= 0;
+											y_border_count <= y_border_count + 1;
+										end
+									else x_border_count <= x_border_count + 1;
 								end
-						end
-					// Move state
-					else if (iState == 3'd1 && !oDone)
-						begin
-							// Use counters to draw new outline
-							oX_pixel <= x_init_pixel + x_border_count;
-							oY_pixel <= y_init_pixel + y_border_count;
-							
-							
-							// Only plot if pixel is on border
-							if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
-							else oPlot <= 0;
-							
-							// Increment counters
-							if (y_border_count == 3'd4 && x_border_count == 3'd4)
-								begin
-									oDone <= 1;
-									// Reset counts for clean state to use
-									x_border_count <= 0;
-									y_border_count <= 0;
-								end
-							else if (x_border_count == 3'd4) 
-								begin
-									x_border_count <= 0;
-									y_border_count <= y_border_count + 1;
-								end
-							else x_border_count <= x_border_count + 1;
 						end
 					
 					// Wait State
-					else if (iState == 3'd2)
+					else if (iState == 4'd2)
 						begin
 							// Add delay here if needed
+							//******* Unsure if the animation is smooth until in-lab. Concern: adding delay to smooth animation causes lots of input lag!
 							oDone <= 0;
 							oPlot <= 0;
+							// Make sure clean state has initialization cycle
+							initialize <= 1;
 							// Set colour for clean state to grid colour - black for now
 							oColour <= 3'b000; 
 						end
 						
 					// Clean state
-					else if (iState == 3'd3 && !oDone)
+					else if (iState == 4'd3 && !oDone)
 						begin
-							// Use prev measurement
-							oX_pixel <= (prev_x_cell*5) + x_border_count;
-							oY_pixel <= (prev_y_cell*5) + y_border_count;
-							
-							// Only plot if pixel is on border
-							if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
-							else oPlot <= 0;
-							
-							// Increment counters
-							if (y_border_count == 3'd4 && x_border_count == 3'd4)
+							// First loop - initialize values
+							if (initialize)
 								begin
-									oDone <= 1;
-									oMove <= 0;
-									// Reset counts
-									x_border_count <= 0;
-									y_border_count <= 0;
-									// Set prev position equal to current position
+									// Set initial pixel to draw from prev value
+									x_init_pixel <= prev_x_cell*5;
+									y_init_pixel <= prev_y_cell*5;
+									// Update prev to current
 									prev_x_cell <= iX_cell;
-									prev_y_cell <=iY_cell;
+									prev_y_cell <= iY_cell;
+									initialize <= 0;
 								end
-							else if (x_border_count == 3'd4) 
+							else
 								begin
-									x_border_count <= 0;
-									y_border_count <= y_border_count + 1;
+									// Use prev measurement
+									oX_pixel <= x_init_pixel + x_border_count;
+									oY_pixel <= y_init_pixel + y_border_count;
+									
+									// Only plot if pixel is on border
+									if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
+									else oPlot <= 0;
+									
+									// Increment counters
+									if (y_border_count == 3'd4 && x_border_count == 3'd4)
+										begin
+											oDone <= 1;
+											// Reset counts
+											x_border_count <= 0;
+											y_border_count <= 0;
+										end
+									else if (x_border_count == 3'd4) 
+										begin
+											x_border_count <= 0;
+											y_border_count <= y_border_count + 1;
+										end
+									else x_border_count <= x_border_count + 1;
 								end
-							else x_border_count <= x_border_count + 1;
 						end
 					
 					// Draw state
-					else if (iState == 3'd4 && !oDone)
+					else if (iState == 4'd4 && !oDone)
 						begin
-							// Send pixel to draw
-							oX_pixel <= x_init_pixel + x_count;
-							oY_pixel <= y_init_pixel + y_count;
-							// Draw each pixel
-							oPlot <= 1;
-							// Colour outputted is what user selected
-							oColour <= iColour;
-							
-							// Increment counters
-							if (y_count == 2'd2 && x_count == 2'd2)
+							// First loop
+							if (initialize)
 								begin
-									oDone <= 1;
-									y_count <= 0;
-									x_count <= 0;
+									// Set current pixel to top left of draw zone of cell
+									x_init_pixel <= iX_cell*5 + 1;
+									y_init_pixel <= iY_cell*5 + 1;
+									initialize <= 0;
+									// Colour outputted is what user selected
+									oColour <= iColour;
 								end
-							else if (x_count == 2'd2)
+							else
 								begin
-									x_count <= 0;
-									y_count <= y_count + 1;
+									// Draw each pixel
+									oPlot <= 1;
+									// Send pixel to draw
+									oX_pixel <= x_init_pixel + x_count;
+									oY_pixel <= y_init_pixel + y_count; 								
+									
+									// Increment counters
+									if (y_count == 2'd2 && x_count == 2'd2)
+										begin
+											oDone <= 1;
+											y_count <= 0;
+											x_count <= 0;
+										end
+									else if (x_count == 2'd2)
+										begin
+											x_count <= 0;
+											y_count <= y_count + 1;
+										end
+									else x_count <= x_count + 1;
 								end
-							else x_count <= x_count + 1;
 						end
 					
 					// Erase state - handled the same as draw except colour is white
-					else if (iState == 3'd5 && !oDone)
+					else if (iState == 4'd5 && !oDone)
 						begin
-							// Send pixel to draw
-							oX_pixel <= x_init_pixel + x_count;
-							oY_pixel <= y_init_pixel + y_count;
-							// Draw each pixel
-							oPlot <= 1;
-							// Colour outputted is white to erase
-							oColour <= 3'b111;
-							
-							// Increment counters
-							if (y_count == 2'd2 && x_count == 2'd2)
+							// First loop
+							if (initialize)
 								begin
-									oDone <= 1;
-									y_count <= 0;
-									x_count <= 0;
+									// Set current pixel to top left of draw zone of cell
+									x_init_pixel <= iX_cell*5 + 1;
+									y_init_pixel <= iY_cell*5 + 1;
+									initialize <= 0;
+									// Colour is white to erase
+									oColour <= 3'b111;
 								end
-							else if (x_count == 2'd2)
+							else
 								begin
-									x_count <= 0;
-									y_count <= y_count + 1;
+									// Draw each pixel
+									oPlot <= 1;
+									// Send pixel to draw
+									oX_pixel <= x_init_pixel + x_count;
+									oY_pixel <= y_init_pixel + y_count;
+									
+									// Increment counters
+									if (y_count == 2'd2 && x_count == 2'd2)
+										begin
+											oDone <= 1;
+											y_count <= 0;
+											x_count <= 0;
+										end
+									else if (x_count == 2'd2)
+										begin
+											x_count <= 0;
+											y_count <= y_count + 1;
+										end
+									else x_count <= x_count + 1;
 								end
-							else x_count <= x_count + 1;
 						end
 					
 					// Clear state
-					else if (iState == 3'd7 && !oDone)
+					else if (iState == 4'd7 && !oDone)
 						begin
 							oX_pixel <= x_clear_count;
 							oY_pixel <= y_clear_count;
