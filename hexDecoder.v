@@ -41,7 +41,7 @@ module hexDecoder(
 	// (x1 x0, y1 y0)
 	always@(*)
 		begin
-			case (cell_x[3:0])
+			case (x_pos[3:0])
 				4'd0: hex_2 = HEX_0;
 				4'd1: hex_2 = HEX_1;
 				4'd2: hex_2 = HEX_2;
@@ -63,7 +63,7 @@ module hexDecoder(
 		
 	always@(*)
 		begin
-			case (cell_x[7:4])
+			case (x_pos[7:4])
 				4'd0: hex_3 = HEX_0;
 				4'd1: hex_3 = HEX_1;
 				4'd2: hex_3 = HEX_2;
@@ -85,7 +85,7 @@ module hexDecoder(
 		
 	always@(*)
 		begin
-			case (cell_y[3:0])
+			case (y_pos[3:0])
 				4'd0: hex_0 = HEX_0;
 				4'd1: hex_0 = HEX_1;
 				4'd2: hex_0 = HEX_2;
@@ -107,7 +107,7 @@ module hexDecoder(
 	
 	always@(*)
 		begin
-			case (cell_y[7:4])
+			case (y_pos[7:4])
 				4'd0: hex_1 = HEX_0;
 				4'd1: hex_1 = HEX_1;
 				4'd2: hex_1 = HEX_2;
