@@ -61,6 +61,7 @@ output reg [UPPER_BITS-1:0] cell_y;
 
 parameter enable_byte =9'b011110100; // Host to mouse signal F4 --> enables streaming from mouse
 parameter disable_byte = 9'b111110101; // Host to mouse signal F5 --> disables streaming from mouse
+parameter reset_byte = 9'b111111111; // Host to mouse signal FF --> resets mouse
 
 //=======================================================
 //  REG/WIRE declarations
@@ -319,7 +320,7 @@ end
 always@(posedge clk,negedge reset)
 begin
   if (!reset)
-     cur_state <= listen;
+     cur_state <= pullclk;
   else
      cur_state <= nex_state;
 end
