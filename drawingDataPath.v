@@ -104,7 +104,8 @@ module drawingDataPath
 							// First loop iterarion - initialize values
 							if (initialize)
 								begin
-									oColour <= 3'b110;
+									if (iColour == 3'b000) oColour <= 3'b110;
+									else oColour <= iColour;
 									x_init_pixel <= iX_cell*5;
 									y_init_pixel <= iY_cell*5;
 									x_border_count <= 0;
