@@ -109,12 +109,13 @@ module drawingControlPath(
 			oEnableMouse = 1;
 			
 			case (cur_state)				
-				// Send signal to disable mouse before clearing screen
-				CLEAR_WAIT:
+				// Send signal to disable mouse before clearing screen (currently disabled)
+				/*CLEAR_WAIT:
 					begin
 						oStartTransmission = 1;
 						oEnableMouse = 0;
 					end
+				*/
 				// Send signal to enable mouse
 				RESET_MOUSE:
 					begin
@@ -128,7 +129,7 @@ module drawingControlPath(
 	always@(posedge iClk, negedge iResetn)
 		begin
 			// Maybe change reset to clearing screen
-			if(!iResetn) cur_state <= RESET_MOUSE; // Forces reset on mouse before entering idle state
+			if(!iResetn) cur_state <=  CLEAR; // Forces reset on mouse before entering idle state
 			else cur_state <= nex_state;
 		end
 		
