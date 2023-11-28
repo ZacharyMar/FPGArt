@@ -36,6 +36,7 @@ module FPGArt(
 	// Inputs
 	input CLOCK_50;
 	input [3:0] KEY;
+	input [9:0] SW;
 	
 	// Inouts
 	inout PS2_CLK, PS2_DAT;
@@ -62,12 +63,14 @@ module FPGArt(
 	wire mouseTransmission, mouseEnable;
 	
 	// X and Y pixel to draw at
-	wire [$clog(SCREEN_WIDTH):0] x_pixel;
-	wire [$clog(SCREEN_HEIGHT):0] y_pixel;
+	wire [$clog2(SCREEN_WIDTH):0] x_pixel;
+	wire [$clog2(SCREEN_HEIGHT):0] y_pixel;
 	// Colour to display
 	wire [2:0] colour;
 	// Enable plotting to monitor
 	wire plot_en;
+	
+	wire [3:0] test;
 	
 	
 	// VGA adapter instance
@@ -121,13 +124,13 @@ module FPGArt(
 		.oX_pixel(x_pixel),
 		.oY_pixel(y_pixel),
 		.oColour(colour),
-		.oPlot(plot_en)
+		.oPlot(plot_en),
 	);
 	
 	// Hex decoder instance
 	hexDecoder HEX_DECODER(
 		.x_pos(cell_x),
-		.y_pox(cell_y),
+		.y_pos(cell_y),
 		.hex_0(HEX0),
 		.hex_1(HEX1),
 		.hex_2(HEX2),
