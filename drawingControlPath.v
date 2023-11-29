@@ -89,7 +89,7 @@ module drawingControlPath(
 					end
 				CLEAR:
 					begin
-						if (iDone) nex_state = RESET_MOUSE;
+						if (iDone) nex_state = IDLE;
 						else nex_state = CLEAR;
 					end
 					
@@ -97,7 +97,7 @@ module drawingControlPath(
 				RESET_MOUSE: nex_state = IDLE;
 				
 				// Should default to idle state
-				default: nex_state = IDLE;
+				default: nex_state = CLEAR;
 			endcase
 		end
 		
