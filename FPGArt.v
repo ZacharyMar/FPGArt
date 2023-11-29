@@ -16,8 +16,9 @@ module FPGArt(
 	// Hex displays used to output cursor position
 	HEX0,				
 	HEX1,
-	HEX2,
 	HEX3,
+	HEX4,
+	HEX5,
 	
 	// VGA ports
 	VGA_CLK,
@@ -32,6 +33,8 @@ module FPGArt(
 	// Change screen size to 640x480 when memory installed
 	parameter SCREEN_WIDTH = 320;
 	parameter SCREEN_HEIGHT = 240;
+	parameter CELL_WIDTH = 5;
+	parameter MAX_Y_CELL = (SCREEN_HEIGHT / CELL_WIDTH) - 5;
 	
 	// Inputs
 	input CLOCK_50;
@@ -42,7 +45,7 @@ module FPGArt(
 	inout PS2_CLK, PS2_DAT;
 	
 	// Outputs
-	output [6:0] HEX0, HEX1, HEX2, HEX3;
+	output [6:0] HEX0, HEX1, HEX3, HEX4, HEX5;
 	
 	// VGA ports
 	output			VGA_CLK;   				//	VGA Clock
@@ -129,12 +132,16 @@ module FPGArt(
 	
 	// Hex decoder instance
 	hexDecoder HEX_DECODER(
-		.x_pos(cell_x),
-		.y_pos(cell_y),
+		.x_ones(cell_x % 10),
+		.x_tens((cell_x / 10) % 10),
+		.x_huns((cell_x / 100) % 10),
+		.y_ones((MAX_Y_CELL - cell_y) % 10),
+		.y_tens(((MAX_Y_CELL - cell_y) / 10) % 10),
 		.hex_0(HEX0),
 		.hex_1(HEX1),
-		.hex_2(HEX2),
-		.hex_3(HEX3)
+		.hex_3(HEX3),
+		.hex_4(HEX4),
+		.hex_5(HEX5)
 	);
 
 endmodule
