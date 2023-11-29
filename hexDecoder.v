@@ -1,15 +1,22 @@
 `timescale 1 ns / 1ns
 
 module hexDecoder(
-	x_pos,	// X cell position
-	y_pos,	// Y cell position
+	// X cell position in decimal digits
+	x_ones,
+	x_tens,
+	x_huns,
+	// Y cell position in decimal digits
+	y_ones,
+	y_tens,
+	// Hex display
 	hex_0,
 	hex_1,
-	hex_2,
-	hex_3
+	hex_3,
+	hex_4,
+	hex_5
 );	
-	input [7:0] x_pos, y_pos;
-	output reg [6:0] hex_0, hex_1, hex_2, hex_3;
+	input wire [3:0] x_ones, x_tens, x_huns, y_ones, y_tens;
+	output reg [6:0] hex_0, hex_1, hex_3, hex_4, hex_5;
 
 	// setting to create HEX value on display
 	 
@@ -36,34 +43,12 @@ module hexDecoder(
 	parameter dash = 7'b0111111; 		// dash (no button push)
 	
 	// Output position to hex
-	// HEX3 and HEX2 are x position
+	// HEX5, HEX4, HEX3 are x position
 	// HEX1 and HEX0 are y position
-	// (x1 x0, y1 y0)
+	// (x2 x1 x0, y1 y0)
 	always@(*)
 		begin
-			case (x_pos[3:0])
-				4'd0: hex_2 = HEX_0;
-				4'd1: hex_2 = HEX_1;
-				4'd2: hex_2 = HEX_2;
-				4'd3: hex_2 = HEX_3;
-				4'd4: hex_2 = HEX_4;
-				4'd5: hex_2 = HEX_5;
-				4'd6: hex_2 = HEX_6;
-				4'd7: hex_2 = HEX_7;
-				4'd8: hex_2 = HEX_8;
-				4'd9: hex_2 = HEX_9;
-				4'd10: hex_2 = HEX_10;
-				4'd11: hex_2 = HEX_11;
-				4'd12: hex_2 = HEX_12;
-				4'd13: hex_2 = HEX_13;
-				4'd14: hex_2 = HEX_14;
-				4'd15: hex_2 = HEX_15;
-			endcase
-		end
-		
-	always@(*)
-		begin
-			case (x_pos[7:4])
+			case (x_ones)
 				4'd0: hex_3 = HEX_0;
 				4'd1: hex_3 = HEX_1;
 				4'd2: hex_3 = HEX_2;
@@ -74,18 +59,47 @@ module hexDecoder(
 				4'd7: hex_3 = HEX_7;
 				4'd8: hex_3 = HEX_8;
 				4'd9: hex_3 = HEX_9;
-				4'd10: hex_3 = HEX_10;
-				4'd11: hex_3 = HEX_11;
-				4'd12: hex_3 = HEX_12;
-				4'd13: hex_3 = HEX_13;
-				4'd14: hex_3 = HEX_14;
-				4'd15: hex_3 = HEX_15;
+				default: hex_3 = dash;
 			endcase
 		end
 		
 	always@(*)
 		begin
-			case (y_pos[3:0])
+			case (x_tens)
+				4'd0: hex_4 = HEX_0;
+				4'd1: hex_4 = HEX_1;
+				4'd2: hex_4 = HEX_2;
+				4'd3: hex_4 = HEX_3;
+				4'd4: hex_4 = HEX_4;
+				4'd5: hex_4 = HEX_5;
+				4'd6: hex_4 = HEX_6;
+				4'd7: hex_4 = HEX_7;
+				4'd8: hex_4 = HEX_8;
+				4'd9: hex_4 = HEX_9;
+				default: hex_4 = dash;
+			endcase
+		end
+		
+	always@(*)
+		begin
+			case (x_huns)
+				4'd0: hex_5 = HEX_0;
+				4'd1: hex_5 = HEX_1;
+				4'd2: hex_5 = HEX_2;
+				4'd3: hex_5 = HEX_3;
+				4'd4: hex_5 = HEX_4;
+				4'd5: hex_5 = HEX_5;
+				4'd6: hex_5 = HEX_6;
+				4'd7: hex_5 = HEX_7;
+				4'd8: hex_5 = HEX_8;
+				4'd9: hex_5 = HEX_9;
+				default: hex_5 = dash;
+			endcase
+		end	
+		
+	always@(*)
+		begin
+			case (y_ones)
 				4'd0: hex_0 = HEX_0;
 				4'd1: hex_0 = HEX_1;
 				4'd2: hex_0 = HEX_2;
@@ -96,18 +110,13 @@ module hexDecoder(
 				4'd7: hex_0 = HEX_7;
 				4'd8: hex_0 = HEX_8;
 				4'd9: hex_0 = HEX_9;
-				4'd10: hex_0 = HEX_10;
-				4'd11: hex_0 = HEX_11;
-				4'd12: hex_0 = HEX_12;
-				4'd13: hex_0 = HEX_13;
-				4'd14: hex_0 = HEX_14;
-				4'd15: hex_0 = HEX_15;
+				default: hex_0 = dash;
 			endcase
 		end
 	
 	always@(*)
 		begin
-			case (y_pos[7:4])
+			case (y_tens)
 				4'd0: hex_1 = HEX_0;
 				4'd1: hex_1 = HEX_1;
 				4'd2: hex_1 = HEX_2;
@@ -118,12 +127,7 @@ module hexDecoder(
 				4'd7: hex_1 = HEX_7;
 				4'd8: hex_1 = HEX_8;
 				4'd9: hex_1 = HEX_9;
-				4'd10: hex_1 = HEX_10;
-				4'd11: hex_1 = HEX_11;
-				4'd12: hex_1 = HEX_12;
-				4'd13: hex_1 = HEX_13;
-				4'd14: hex_1 = HEX_14;
-				4'd15: hex_1 = HEX_15;
+				default: hex_1 = dash;
 			endcase
 		end
 	
