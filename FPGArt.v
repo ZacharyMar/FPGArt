@@ -34,7 +34,7 @@ module FPGArt(
 	parameter SCREEN_WIDTH = 320;
 	parameter SCREEN_HEIGHT = 240;
 	parameter CELL_WIDTH = 5;
-	parameter MAX_Y_CELL = (SCREEN_HEIGHT / CELL_WIDTH) - 5;
+	parameter MAX_Y_CELL = (SCREEN_HEIGHT / CELL_WIDTH);
 	
 	// Inputs
 	input CLOCK_50;
@@ -73,7 +73,8 @@ module FPGArt(
 	// Enable plotting to monitor
 	wire plot_en;
 	
-	wire [3:0] test;
+	// BCD converted position
+	wire [11:0] BCD_x, BCD_y;
 	
 	
 	// VGA adapter instance
@@ -130,13 +131,21 @@ module FPGArt(
 		.oPlot(plot_en),
 	);
 	
+	// Binary to BCD converter instance
+	bin2BCD BIN2BCD_CONVERTER(
+		.iX_cell(cell_x),
+		.iY_cell(MAX_Y_CELL - cell_y),
+		.oBCDX(BCD_x),
+		.oBCDY(BCD_y)
+	);
+	
 	// Hex decoder instance
 	hexDecoder HEX_DECODER(
-		.x_ones(cell_x % 10),
-		.x_tens((cell_x / 10) % 10),
-		.x_huns((cell_x / 100) % 10),
-		.y_ones((MAX_Y_CELL - cell_y) % 10),
-		.y_tens(((MAX_Y_CELL - cell_y) / 10) % 10),
+		.x_ones(BCD_x[3:0]),
+		.x_tens(BCD_x[7:4]),
+		.x_huns(BCD_x[11:8]),
+		.y_ones(BCD_y[3:0]),
+		.y_tens(BCD_y[7:4]),
 		.hex_0(HEX0),
 		.hex_1(HEX1),
 		.hex_3(HEX3),
