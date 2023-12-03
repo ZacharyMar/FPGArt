@@ -19,6 +19,7 @@ module FPGArt(
 	HEX3,
 	HEX4,
 	//HEX5,
+	LEDR,
 	
 	// VGA ports
 	VGA_CLK,
@@ -31,22 +32,23 @@ module FPGArt(
 	VGA_B  
 );
 	// Change screen size to 640x480 when memory installed
-	parameter SCREEN_WIDTH = 160;
-	parameter SCREEN_HEIGHT = 120;
+	parameter SCREEN_WIDTH = 320;
+	parameter SCREEN_HEIGHT = 240;
 	parameter CELL_WIDTH = 5;
-	parameter MAX_Y_CELL = (SCREEN_HEIGHT / CELL_WIDTH);
+	parameter MAX_Y_CELL = 8'd47; //change depending on resolution
 	
 	// Inputs
 	input CLOCK_50;
 	input [3:0] KEY;
 	input [9:0] SW;
 	
+	
 	// Inouts
 	inout PS2_CLK, PS2_DAT;
 	
 	// Outputs
 	output [6:0] HEX0, HEX1, HEX3, HEX4; // HEX5;
-	
+	output [9:0] LEDR;
 	// VGA ports
 	output			VGA_CLK;   				//	VGA Clock
 	output			VGA_HS;					//	VGA H_SYNC
@@ -69,13 +71,16 @@ module FPGArt(
 	wire [$clog2(SCREEN_WIDTH):0] x_pixel;
 	wire [$clog2(SCREEN_HEIGHT):0] y_pixel;
 	// Colour to display
-	wire [2:0] colour;
+	wire [8:0] colour;
 	// Enable plotting to monitor
 	wire plot_en;
-	
+	wire ChipSelect;
 	// BCD converted position
 	wire [11:0] BCD_x, BCD_y;
 	
+	// LED current save slot indicator
+	assign LEDR[1] = ChipSelect;
+	assign LEDR[0] = !ChipSelect;
 	
 	// VGA adapter instance
 	vga_adapter VGA(
@@ -93,10 +98,10 @@ module FPGArt(
 			.VGA_BLANK(VGA_BLANK_N),
 			.VGA_SYNC(VGA_SYNC_N),
 			.VGA_CLK(VGA_CLK));
-		defparam VGA.RESOLUTION = "160x120"; // Change resolution parameter to 640x480 when memory installed
+		defparam VGA.RESOLUTION = "320x240"; // Change resolution parameter to 640x480 when memory installed
 		defparam VGA.MONOCHROME = "FALSE";
-		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1; // Change bits for colour to 3 when memory installed 
-		defparam VGA.BACKGROUND_IMAGE = "white160x120.mif"; // Change to MIF file for 640x480 when memory installed
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 3; // Change bits for colour to 3 when memory installed 
+		defparam VGA.BACKGROUND_IMAGE = "Background320x240.mif"; // Change to MIF file for 640x480 when memory installed
 		
 	// Mouse instance
 	ps2 #(.SCREEN_WIDTH(SCREEN_WIDTH), .SCREEN_HEIGHT(SCREEN_HEIGHT)) MOUSE(
@@ -124,19 +129,20 @@ module FPGArt(
 		.iSlot1(~KEY[2]),
 		.iX_cell(cell_x),
 		.iY_cell(cell_y),
-		.iColour(SW[9:7]),
+		.iColour(SW[9:1]),
 		.oColour(colour),
 		.oX_pixel(x_pixel),
 		.oY_pixel(y_pixel),
 		.oStartTransmission(mouseTransmission),
 		.oEnableMouse(mouseEnable),
-		.oPlot(plot_en)
+		.oPlot(plot_en),
+		.oChipSelect(ChipSelect)
 	);
 	
 	// Binary to BCD converter instance
 	bin2BCD BIN2BCD_CONVERTER(
 		.iX_cell(cell_x),
-		.iY_cell(MAX_Y_CELL - cell_y),
+		.iY_cell(cell_y),
 		.oBCDX(BCD_x),
 		.oBCDY(BCD_y)
 	);
