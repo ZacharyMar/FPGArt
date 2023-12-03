@@ -16,8 +16,7 @@ module drawingCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT = 1
     oY_pixel,
     oStartTransmission,
     oEnableMouse,
-    oPlot,
-    oTestState
+    oPlot
 	);
     parameter CELL_DIMENSION = 5;
 	 parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
@@ -32,7 +31,6 @@ module drawingCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT = 1
     output wire oPlot;
     output wire oStartTransmission;
     output wire oEnableMouse;
-    output wire [3:0] oTestState;
 
 	
     //inner wires to memory controller module
@@ -58,8 +56,7 @@ module drawingCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT = 1
     .oY_pixel(oY_pixel),
     .oChipSelect(ChipSelect),
     .oStartTransmission(oStartTransmission),
-    .oEnableMouse(oEnableMouse),
-    .oTestState(oTestState)
+    .oEnableMouse(oEnableMouse)
 	);
 
 	memory_controller MEMORY_CONTROLLER(
