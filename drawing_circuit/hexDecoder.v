@@ -4,7 +4,7 @@ module hexDecoder(
 	// X cell position in decimal digits
 	x_ones,
 	x_tens,
-	x_huns,
+	//x_huns,
 	// Y cell position in decimal digits
 	y_ones,
 	y_tens,
@@ -13,10 +13,10 @@ module hexDecoder(
 	hex_1,
 	hex_3,
 	hex_4,
-	hex_5
+	//hex_5
 );	
-	input wire [3:0] x_ones, x_tens, x_huns, y_ones, y_tens;
-	output reg [6:0] hex_0, hex_1, hex_3, hex_4, hex_5;
+	input wire [3:0] x_ones, x_tens, y_ones, y_tens; // , x_huns
+	output reg [6:0] hex_0, hex_1, hex_3, hex_4;// hex_5;
 
 	// setting to create HEX value on display
 	 
@@ -80,6 +80,7 @@ module hexDecoder(
 			endcase
 		end
 		
+	/*	
 	always@(*)
 		begin
 			case (x_huns)
@@ -95,7 +96,8 @@ module hexDecoder(
 				4'd9: hex_5 = HEX_9;
 				default: hex_5 = dash;
 			endcase
-		end	
+		end
+	*/	
 		
 	always@(*)
 		begin
