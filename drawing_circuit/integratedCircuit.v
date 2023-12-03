@@ -1,6 +1,6 @@
-`timescale 1 ns / 1ns
+`timescale 1 ns / 1 ns
 
-module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT = 120)(
+module integratedCircuit #(parameter SCREEN_WIDTH = 320,parameter SCREEN_HEIGHT = 240)(
 	 iClk,						// Source clock
 	 iResetn,					// FSM reset signal
 	 iBtnL,						// Asserted when LMB clicked
@@ -29,13 +29,13 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 	 //block inputs
 	 input wire iClk, iResetn, iBtnL, iBtnR, iClear, iSlot0, iSlot1;
 	 input wire [UPPER_BITS-1:0] iX_cell, iY_cell; 
-	 input wire [2:0] iQ_r; 
-	 input wire [2:0] iColour; 
+	 input wire [8:0] iQ_r; 
+	 input wire [8:0] iColour; 
 	 
 	 //block outputs
-	 output reg [14:0] oAddress; 
+	 output reg [16:0] oAddress; 
 	 output wire oWren_d; 
-	 output reg [2:0] oColour; 
+	 output reg [8:0] oColour; 
 	 output reg [$clog2(SCREEN_WIDTH):0] oX_pixel; 
 	 output reg [$clog2(SCREEN_HEIGHT):0] oY_pixel;
 	 output reg oPlot;
@@ -44,7 +44,7 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 	 output wire oEnableMouse;
 	 
 	 //internal wires and mux selectors
-	 wire [3:0] state;
+	 wire [4:0] state;
 	 wire move;
 	 
 	 // Selector bit used to determine which datapath outputs are valid
@@ -57,13 +57,13 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 	 wire done_ram, done_draw;
 	 
 	 //address selector mux
-	 wire [14:0] address_ram, address_draw;
+	 wire [16:0] address_ram, address_draw;
 	 
 	 //VGA selector mux
 	 wire [$clog2(SCREEN_WIDTH):0] x_draw, x_ram;
 	 wire [$clog2(SCREEN_HEIGHT):0] y_draw, y_ram;
 	 wire plot_draw, plot_ram;
-	 wire [2:0] colour_draw, colour_ram;
+	 wire [8:0] colour_draw, colour_ram;
 		 
 	 // Circuit outputs based on mux
 	 always@(*)
