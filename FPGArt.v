@@ -130,8 +130,7 @@ module FPGArt(
 		.oY_pixel(y_pixel),
 		.oStartTransmission(mouseTransmission),
 		.oEnableMouse(mouseEnable),
-		.oPlot(plot_en),
-		.oTestState(test)
+		.oPlot(plot_en)
 	);
 	
 	// Binary to BCD converter instance
