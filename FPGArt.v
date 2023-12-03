@@ -18,7 +18,7 @@ module FPGArt(
 	HEX1,
 	HEX3,
 	HEX4,
-	HEX5,
+	//HEX5,
 	
 	// VGA ports
 	VGA_CLK,
@@ -31,8 +31,8 @@ module FPGArt(
 	VGA_B  
 );
 	// Change screen size to 640x480 when memory installed
-	parameter SCREEN_WIDTH = 320;
-	parameter SCREEN_HEIGHT = 240;
+	parameter SCREEN_WIDTH = 160;
+	parameter SCREEN_HEIGHT = 120;
 	parameter CELL_WIDTH = 5;
 	parameter MAX_Y_CELL = (SCREEN_HEIGHT / CELL_WIDTH);
 	
@@ -45,7 +45,7 @@ module FPGArt(
 	inout PS2_CLK, PS2_DAT;
 	
 	// Outputs
-	output [6:0] HEX0, HEX1, HEX3, HEX4, HEX5;
+	output [6:0] HEX0, HEX1, HEX3, HEX4; // HEX5;
 	
 	// VGA ports
 	output			VGA_CLK;   				//	VGA Clock
@@ -93,10 +93,10 @@ module FPGArt(
 			.VGA_BLANK(VGA_BLANK_N),
 			.VGA_SYNC(VGA_SYNC_N),
 			.VGA_CLK(VGA_CLK));
-		defparam VGA.RESOLUTION = "320x240"; // Change resolution parameter to 640x480 when memory installed
+		defparam VGA.RESOLUTION = "160x120"; // Change resolution parameter to 640x480 when memory installed
 		defparam VGA.MONOCHROME = "FALSE";
 		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1; // Change bits for colour to 3 when memory installed 
-		defparam VGA.BACKGROUND_IMAGE = "background320x240.mif"; // Change to MIF file for 640x480 when memory installed
+		defparam VGA.BACKGROUND_IMAGE = "white160x120.mif"; // Change to MIF file for 640x480 when memory installed
 		
 	// Mouse instance
 	ps2 #(.SCREEN_WIDTH(SCREEN_WIDTH), .SCREEN_HEIGHT(SCREEN_HEIGHT)) MOUSE(
@@ -115,20 +115,23 @@ module FPGArt(
 	
 	// Drawing circuit instance
 	drawingCircuit #(.SCREEN_WIDTH(SCREEN_WIDTH), .SCREEN_HEIGHT(SCREEN_HEIGHT)) DRAW_CIRCUIT(
-		.iResetn(KEY[0]),
 		.iClk(CLOCK_50),
+		.iResetn(KEY[0]),
+		.iBtnL(left_btn),
+		.iBtnR(right_btn),
 		.iClear(~KEY[3]),
-		.iColour(SW[9:7]),
+		.iSlot0(~KEY[1]),
+		.iSlot1(~KEY[2]),
 		.iX_cell(cell_x),
 		.iY_cell(cell_y),
-		.iLeftbtn(left_btn),
-		.iRightbtn(right_btn),
-		.oStartTransmission(mouseTransmission),
-		.oMouseEnable(mouseEnable),
+		.iColour(SW[9:7]),
+		.oColour(colour),
 		.oX_pixel(x_pixel),
 		.oY_pixel(y_pixel),
-		.oColour(colour),
+		.oStartTransmission(mouseTransmission),
+		.oEnableMouse(mouseEnable),
 		.oPlot(plot_en),
+		.oTestState(test)
 	);
 	
 	// Binary to BCD converter instance
@@ -143,14 +146,14 @@ module FPGArt(
 	hexDecoder HEX_DECODER(
 		.x_ones(BCD_x[3:0]),
 		.x_tens(BCD_x[7:4]),
-		.x_huns(BCD_x[11:8]),
+		//.x_huns(BCD_x[11:8]),
 		.y_ones(BCD_y[3:0]),
 		.y_tens(BCD_y[7:4]),
 		.hex_0(HEX0),
 		.hex_1(HEX1),
 		.hex_3(HEX3),
 		.hex_4(HEX4),
-		.hex_5(HEX5)
+		//.hex_5(HEX5)
 	);
 
 endmodule
