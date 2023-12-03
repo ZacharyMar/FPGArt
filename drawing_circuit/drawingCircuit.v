@@ -1,74 +1,75 @@
 `timescale 1 ns / 1 ns
 
-module drawingCircuit
-	#(
-	parameter SCREEN_WIDTH = 640,
-	parameter SCREEN_HEIGHT = 480
-	)
-	(
-	iResetn, 			  // Reset signal for drawing circuit
-	iClk,    			  // Clock source
-	iClear,				  // Signal asserted to clear screen
-	iColour,				  // Colour input from user
-	iX_cell,				  // X location of cell from mouse
-	iY_cell,				  // Y location of cell from mouse
-	iLeftbtn,			  // Signal asserted when LMB pressed
-	iRightbtn,			  // Signal asserted when RMB pressed
-	oStartTransmission, // Signal asserted to initiate host-to-mouse communication
-	oMouseEnable,		  // Signal asserted or deasserted to send command to enable/disable mouse streaming
-	oX_pixel,			  // Output to VGA for x pixel coordinate
-	oY_pixel,			  // Output to VGA for y pixel coordinate
-	oColour,				  // Output to VGA for colour to draw in
-	oPlot					  // Signal asserted to enable VGA to display to monitor
+module drawingCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT = 120)(
+    iClk,
+    iResetn,
+    iBtnL,
+    iBtnR,
+    iClear,
+    iSlot0,
+    iSlot1,
+    iX_cell,
+    iY_cell,
+    iColour,
+    oColour,
+    oX_pixel,
+    oY_pixel,
+    oStartTransmission,
+    oEnableMouse,
+    oPlot,
+    oTestState
 	);
-	parameter CELL_DIMENSION = 5;
-	parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
+    parameter CELL_DIMENSION = 5;
+	 parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
+    //block inputs
+    input wire iClk, iResetn, iBtnL, iBtnR, iClear, iSlot0, iSlot1;
+    input wire [UPPER_BITS-1:0] iX_cell, iY_cell; //xy from mouse (represents position on smaller drawing grid (32 x 24 on 160 x 120 display))
+    input wire [2:0] iColour; //colour data from switch input
+    //block outputs
+    output wire [2:0] oColour; //also known as data to ram, used for VGA and data into ram controller
+    output wire [$clog2(SCREEN_WIDTH):0] oX_pixel; //xy to VGA
+	 output wire [$clog2(SCREEN_HEIGHT):0] oY_pixel;
+    output wire oPlot;
+    output wire oStartTransmission;
+    output wire oEnableMouse;
+    output wire [3:0] oTestState;
+
 	
-	
-	// Inputs
-	input wire iResetn, iClk, iClear, iLeftbtn, iRightbtn;
-	input wire [2:0] iColour;
-	input wire [UPPER_BITS-1:0] iX_cell, iY_cell;
-	
-	// Outputs
-	output wire oStartTransmission, oMouseEnable, oPlot;
-	output wire [$clog2(SCREEN_WIDTH):0] oX_pixel;
-	output wire [$clog2(SCREEN_HEIGHT):0] oY_pixel;
-	output wire [2:0] oColour;
-	
-	// Wires
-	wire move; 			// Asserted when mouse movement detected
-	wire done; 			// Asserted when process in datapath is finished
-	wire [3:0] state; // Carries current state information to datapath
-	
-	// Instantiate FSM
-	drawingControlPath c0 (
-		.iResetn(iResetn),
-		.iClk(iClk),
-		.iBtnL(iLeftbtn),
-		.iBtnR(iRightbtn),
-		.iDone(done),
-		.iClear(iClear),
-		.iMove(move),
-		.oState(state),
-		.oEnableMouse(oMouseEnable),
-		.oStartTransmission(oStartTransmission)
+    //inner wires to memory controller module
+    wire ChipSelect, wren, q;
+    wire [14:0] address;
+
+	integratedCircuit #(.SCREEN_WIDTH(SCREEN_WIDTH), .SCREEN_HEIGHT(SCREEN_HEIGHT)) INTEGRATED_CIRCUIT(
+	 .iClk(iClk),
+    .iResetn(iResetn),
+    .iBtnL(iBtnL),
+    .iBtnR(iBtnR),
+    .iClear(iClear),
+    .iSlot0(iSlot0),
+    .iSlot1(iSlot1),
+    .iX_cell(iX_cell),
+    .iY_cell(iY_cell),
+    .iQ_r(q),
+    .iColour(iColour),
+    .oAddress(address),
+    .oWren_d(wren),
+    .oColour(oColour),
+    .oX_pixel(oX_pixel),
+    .oY_pixel(oY_pixel),
+    .oChipSelect(ChipSelect),
+    .oStartTransmission(oStartTransmission),
+    .oEnableMouse(oEnableMouse),
+    .oTestState(oTestState)
+	);
+
+	memory_controller MEMORY_CONTROLLER(
+	 .iClk(iClk), 
+    .iData(oColour), 
+    .iAddress(address), 
+    .iWren(wren), 
+    .iChipSelect(ChipSelect), 
+    .oQ(q)
 	);
 	
-	// Instantiate datapath
-	drawingDataPath #(.SCREEN_WIDTH(SCREEN_WIDTH), .SCREEN_HEIGHT(SCREEN_HEIGHT)) d0 (
-		.iResetn(iResetn),
-		.iClk(iClk),
-		.iX_cell(iX_cell),
-		.iY_cell(iY_cell),
-		.iColour(iColour),
-		.iState(state),
-		.oX_pixel(oX_pixel),
-		.oY_pixel(oY_pixel),
-		.oDone(done),
-		.oColour(oColour),
-		.oMove(move),
-		.oPlot(oPlot)
-	);
-	
+
 endmodule
