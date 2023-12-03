@@ -20,8 +20,7 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 	 oChipSelect,				// Outputted to memory controller to select which block of memory to interface with
 	 oStartTransmission,		// Asserted to start host-to-mouse communication
 	 oEnableMouse,				// Asserted to enable (1) or disable (0) mouse streaming
-	 oPlot,						// Asserted to allow for drawing to display
-	 oTestState
+	 oPlot						// Asserted to allow for drawing to display
 	 );
 
 	 parameter CELL_DIMENSION = 5;
@@ -43,7 +42,6 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 	 output wire oChipSelect; 
 	 output wire oStartTransmission;
 	 output wire oEnableMouse;
-	 output wire [3:0] oTestState;
 	 
 	 //internal wires and mux selectors
 	 wire [3:0] state;
@@ -87,8 +85,6 @@ module integratedCircuit #(parameter SCREEN_WIDTH = 160,parameter SCREEN_HEIGHT 
 					oColour = colour_draw;
 				end
 		end
-		
-	assign oTestState = state;
 	
 	 drawingControlPath cr0(
 		.iResetn(iResetn), 				
