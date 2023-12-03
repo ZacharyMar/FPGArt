@@ -21,27 +21,31 @@ module drawingControlPath(
 	input wire iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove;
 	
 	// Output
-	output wire [3:0] oState;
+	output wire [4:0] oState;
 	output reg oEnableMouse, oStartTransmission, oDatapathSelect;
 	
 	// Regs
-	reg [3:0] cur_state, nex_state;
+	reg [4:0] cur_state, nex_state;
 	// memory
 	input wire iSlot1, iSlot0; 
 	// States 
-	localparam IDLE            = 4'd0,
-				  MOVE 			= 4'd1,
-				  WAIT 			= 4'd2,
-				  CLEAN 			= 4'd3,
-				  DRAW 			= 4'd4,
-				  ERASE 			= 4'd5,
-				  CLEAR_WAIT 	= 4'd6,
-				  CLEAR 			= 4'd7,
-				  RESET_MOUSE 	= 4'd8,
-				  CHANGE_STATE0 = 4'd9,
-				  CHANGE_STATE0_LOAD = 4'd10,
-				  CHANGE_STATE1 = 4'd11,
-				  CHANGE_STATE1_LOAD = 4'd12;
+	localparam IDLE            = 5'd0,
+				  MOVE 			= 5'd1,
+				  WAIT 			= 5'd2,
+				  CLEAN 			= 5'd3,
+				  DRAW 			= 5'd4,
+				  ERASE 			= 5'd5,
+				  CLEAR_WAIT 	= 5'd6,
+				  CLEAR 			= 5'd7,
+				  RESET_MOUSE 	= 5'd8,
+				  CHANGE_STATE0 = 5'd9,
+				  CHANGE_STATE0_LOAD = 5'd10,
+				  CHANGE_STATE1 = 5'd11,
+				  CHANGE_STATE1_LOAD = 5'd12,
+				  CLEAR_RESET_WAIT0 = 5'd13,
+				  CLEAR_RESET_SLOT0 = 5'd14,
+				  CLEAR_RESET_WAIT1 = 5'd15,
+				  CLEAR_RESET_SLOT1 = 5'd16;
 	  
    // Steps to trigger enable/disable of mouse:
 	// 1. Have a buffer state before the state you want the mouse enabled/disabled
@@ -143,6 +147,19 @@ module drawingControlPath(
 				// After reset of mouse, always go to IDLE state
 				RESET_MOUSE: nex_state = IDLE;
 				
+				CLEAR_RESET_WAIT0: nex_state = CLEAR_RESET_SLOT0;
+				CLEAR_RESET_SLOT0:
+					begin
+						if (iDone) nex_state = CLEAR_RESET_WAIT1;
+						else nex_state = CLEAR_RESET_SLOT0;
+					end
+				CLEAR_RESET_WAIT1: nex_state = CLEAR_RESET_SLOT1;
+				CLEAR_RESET_SLOT1:
+					begin
+						if (iDone) nex_state = IDLE;
+						else nex_state = CLEAR_RESET_SLOT1;
+					end
+				
 				// Should default to idle state
 				default: nex_state = IDLE;
 			endcase
@@ -185,7 +202,8 @@ module drawingControlPath(
 					begin
 						oDatapathSelect = 1;
 					end
-				
+				CLEAR_RESET_WAIT0: oDatapathSelect = 1;
+				CLEAR_RESET_WAIT1: oDatapathSelect = 1;
 			endcase
 		end
 		
@@ -193,7 +211,7 @@ module drawingControlPath(
 	always@(posedge iClk, negedge iResetn)
 		begin
 			// Maybe change reset to clearing screen
-			if(!iResetn) cur_state <=  CLEAR; // Forces reset on mouse before entering idle state
+			if(!iResetn) cur_state <=  CLEAR_RESET_WAIT0; // Forces reset on mouse before entering idle state
 			else cur_state <= nex_state;
 		end
 		
