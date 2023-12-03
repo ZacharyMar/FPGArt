@@ -6,6 +6,8 @@ PS2 mouse interface module
 Interfaces with PS2 port on FPGA.
 Screen is interpreted to be a grid (has discrete locations). Movement data from the mouse is only interpreted by 
 direction to determine which direction on the grid should be traversed (absolute xy coordinate is not calculated).
+
+Code based on ps2 mouse interface found here: https://class.ece.uw.edu/271/hauck2/de1/mouse/ps2.v
 ****************************************************************************************************************/
 
 module ps2
@@ -115,6 +117,7 @@ always @(posedge CLOCK_50)
 begin
 	if(start) starttimer <= 1'b1;
 	else if(starttimer) starttimer <= starttimer + 1'b1;
+	
 	button_left = leflatch;
 	button_right = riglatch;
 	button_middle = midlatch;
@@ -187,9 +190,10 @@ begin
 end
 //periodically reset data_length_count
 assign flag = (count == 8'hff)?1:0;
-always@(posedge ps2_clk_in,posedge flag)
+always@(posedge ps2_clk_in,posedge flag, negedge reset)
 begin
-  if (flag)
+	if (!reset) data_length_count <= 6'b000000;
+  else if (flag)
      data_length_count <= 6'b000000;
   else
      data_length_count <= data_length_count+1;
