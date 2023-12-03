@@ -1,5 +1,8 @@
+`timescale 1 ns / 1 ns
+
 module memory_controller(
-    iClk, 
+    iResetn,
+	iClk, 
     iData, 
     iAddress, 
     iWren, 
@@ -7,10 +10,10 @@ module memory_controller(
     oQ
     );
 
-    input wire iClk, iChipSelect, iWren;
-    input wire [2:0] iData;
-    input wire [14:0] iAddress;
-    output reg [2:0] oQ;
+    input wire iClk, iChipSelect, iWren, iResetn;
+    input wire [8:0] iData;
+    input wire [16:0] iAddress;
+    output reg [8:0] oQ;
     /*
      Expansion for more RAM instantiations:
      1. Allow for more chip select options
@@ -19,7 +22,7 @@ module memory_controller(
      3. Assert each wren to each memory block
      4. To determine output to choose, use case statement (combinational) as below
      */
-    wire q0, q1;
+    wire [8:0] q0, q1;
     // reg wren0, wren1, wren2;
 
     // always@(*)
@@ -33,7 +36,7 @@ module memory_controller(
     //             end
     //     end
     
-    BRAM1 m0 (
+    BRAM3 m0 (
         .address(iAddress),
         .clock(iClk),
         .data(iData),
@@ -41,7 +44,7 @@ module memory_controller(
 	    .q(q0)
     );
 
-    BRAM1 m1(
+    BRAM3 m1(
         .address(iAddress),
 	    .clock(iClk),
 	    .data(iData),
@@ -51,7 +54,8 @@ module memory_controller(
     
     always@(*)
         begin
-            if (iChipSelect) oQ = q1;
+				if (!iResetn) oQ = 9'b111111111;
+            else if (iChipSelect) oQ = q1;
             else oQ = q0;
         end
 
