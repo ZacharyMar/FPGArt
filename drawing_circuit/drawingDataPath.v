@@ -2,8 +2,8 @@
 
 module drawingDataPath
 	#(
-	parameter SCREEN_WIDTH = 640,
-	parameter SCREEN_HEIGHT = 480
+	parameter SCREEN_WIDTH = 160,
+	parameter SCREEN_HEIGHT = 120
 	)
 	(
 	iResetn, 	// Reset datapath to initial values
@@ -18,6 +18,9 @@ module drawingDataPath
 	oColour,  	// Colour output to VGA
 	oMove, 	 	// Signal asserted when mouse movement is detected
 	oPlot,    	// Signal output to VGA to draw to monitor
+	//j memory outputs
+	oAddress, //data write address
+    oWren, //data write enable
 	);
 	parameter CELL_DIMENSION = 5;
 	parameter UPPER_BITS = $clog2((SCREEN_WIDTH / CELL_DIMENSION) > (SCREEN_HEIGHT / CELL_DIMENSION)? (SCREEN_WIDTH / CELL_DIMENSION):(SCREEN_HEIGHT / CELL_DIMENSION));
@@ -34,7 +37,10 @@ module drawingDataPath
 	output reg [$clog2(SCREEN_WIDTH):0] oX_pixel;
 	output reg [$clog2(SCREEN_HEIGHT):0] oY_pixel;
 	output reg oDone, oMove, oPlot;
-	output reg [2:0] oColour;
+	output reg [2:0] oColour; //wire output to input of data in ram modules
+	//j memory inputs/outputs
+	output reg[14:0] oAddress;
+	output reg oWren;
 	
 	// Regs
 	// Counters used to fill in cell
@@ -73,6 +79,8 @@ module drawingDataPath
 					y_border_count <= 0;
 					initialize <= 1;
 					oPlot <= 0;
+					oWren <= 0;
+					oAddress <= 0;
 				end
 				
 			else
@@ -97,6 +105,7 @@ module drawingDataPath
 							oDone <= 0;
 							oPlot <= 0;
 							initialize <= 1;
+							oWren <= 0;
 						end
 					// Move state
 					else if (iState == 4'd1 && !oDone)
@@ -118,7 +127,7 @@ module drawingDataPath
 									// Use counters to draw new outline
 									oX_pixel <= x_init_pixel + x_border_count;
 									oY_pixel <= y_init_pixel + y_border_count;
-									
+
 									
 									// Only plot if pixel is on border
 									if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
@@ -173,10 +182,11 @@ module drawingDataPath
 									// Use prev measurement
 									oX_pixel <= x_init_pixel + x_border_count;
 									oY_pixel <= y_init_pixel + y_border_count;
-									
+
 									// Only plot if pixel is on border
 									if (x_border_count == 3'd0 || x_border_count == 3'd4 || y_border_count == 3'd0 || y_border_count == 3'd4) oPlot <= 1;
 									else oPlot <= 0;
+									
 									
 									// Increment counters
 									if (y_border_count == 3'd4 && x_border_count == 3'd4)
@@ -212,10 +222,11 @@ module drawingDataPath
 								begin
 									// Draw each pixel
 									oPlot <= 1;
+									oWren <= 1;
 									// Send pixel to draw
 									oX_pixel <= x_init_pixel + x_count;
 									oY_pixel <= y_init_pixel + y_count; 								
-									
+									oAddress <= ({1'b0, y_init_pixel + y_count, 7'd0} + {1'b0, y_init_pixel + y_count, 5'd0} + {1'b0, x_init_pixel + x_count});
 									// Increment counters
 									if (y_count == 2'd2 && x_count == 2'd2)
 										begin
@@ -249,10 +260,11 @@ module drawingDataPath
 								begin
 									// Draw each pixel
 									oPlot <= 1;
+									oWren <= 1;
 									// Send pixel to draw
 									oX_pixel <= x_init_pixel + x_count;
 									oY_pixel <= y_init_pixel + y_count;
-									
+									oAddress <= ({1'b0, y_init_pixel + y_count, 7'd0} + {1'b0, y_init_pixel + y_count, 5'd0} + {1'b0, x_init_pixel + x_count});
 									// Increment counters
 									if (y_count == 2'd2 && x_count == 2'd2)
 										begin
@@ -275,7 +287,8 @@ module drawingDataPath
 							oX_pixel <= x_clear_count;
 							oY_pixel <= y_clear_count;
 							oPlot <= 1;
-							
+							oWren <= 1;
+							oAddress <= ({1'b0, y_clear_count, 7'd0} + {1'b0, y_clear_count, 5'd0} + {1'b0, x_clear_count});
 							// Colour is black on gridlines - coordinate has 0, 4, 5 or 9 in one's digit
 							if (x_clear_count % 10 == 0 || x_clear_count % 10 == 4 || x_clear_count % 10 == 5 || x_clear_count % 10 == 9 || y_clear_count % 10 == 0 || y_clear_count % 10 == 4 || y_clear_count % 10 == 5 || y_clear_count % 10 == 9)
 								 begin
