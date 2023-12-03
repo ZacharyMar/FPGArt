@@ -10,20 +10,26 @@ module drawingControlPath(
 	iMove, 					// Signal from datapath indicating mouse movement detected
 	oState, 					// Output current state
 	oEnableMouse, 			// Signal asserted to enable (1) or disable (0) mouse streaming
-	oStartTransmission 	// Signal asserted to initiate host-to-mouse communication
+	oStartTransmission, 	// Signal asserted to initiate host-to-mouse communication
+	
+	//j Memory signals
+	iSlot0, //asserted when we load slot 0
+	iSlot1, //load when we slot 1
+	oDatapathSelect
 	);
 	// Inputs
 	input wire iResetn, iClk, iBtnL, iBtnR, iDone, iClear, iMove;
 	
 	// Output
 	output wire [3:0] oState;
-	output reg oEnableMouse, oStartTransmission;
+	output reg oEnableMouse, oStartTransmission, oDatapathSelect;
 	
 	// Regs
 	reg [3:0] cur_state, nex_state;
-	
-	// States
-	localparam IDLE 			= 4'd0,
+	// memory
+	input wire iSlot1, iSlot0; 
+	// States 
+	localparam IDLE            = 4'd0,
 				  MOVE 			= 4'd1,
 				  WAIT 			= 4'd2,
 				  CLEAN 			= 4'd3,
@@ -31,7 +37,11 @@ module drawingControlPath(
 				  ERASE 			= 4'd5,
 				  CLEAR_WAIT 	= 4'd6,
 				  CLEAR 			= 4'd7,
-				  RESET_MOUSE 	= 4'd8;
+				  RESET_MOUSE 	= 4'd8,
+				  CHANGE_STATE0 = 4'd9,
+				  CHANGE_STATE0_LOAD = 4'd10,
+				  CHANGE_STATE1 = 4'd11,
+				  CHANGE_STATE1_LOAD = 4'd12;
 	  
    // Steps to trigger enable/disable of mouse:
 	// 1. Have a buffer state before the state you want the mouse enabled/disabled
@@ -44,8 +54,11 @@ module drawingControlPath(
 			case (cur_state)
 				IDLE: 
 					begin
-						// Order of priority in idle state: move, draw, erase, clear
-						if (iMove) nex_state = MOVE;
+						// Order of priority in idle state: load, move, draw, erase, clear
+						if (iSlot0) nex_state = CHANGE_STATE0; //j added load states to the top as i think you should prioritize this over mouse when loading
+            		else if (iSlot1) nex_state = CHANGE_STATE1;
+						else if (iMove) nex_state = MOVE;
+
 						else if (iBtnL) nex_state = DRAW;
 						else if (iBtnR) nex_state = ERASE;
 						else if (iClear) nex_state = CLEAR_WAIT;
@@ -54,6 +67,41 @@ module drawingControlPath(
 					
 				// These states involved outputting to VGA
 				// Change state only when task is completed
+				CHANGE_STATE0_LOAD: begin
+					if(iDone) begin
+						nex_state = IDLE;
+					end
+					else if (!iDone)begin
+						nex_state = CHANGE_STATE0_LOAD;
+					end					
+				end
+				//j memory states
+				CHANGE_STATE0: begin 
+					if(!iSlot0)begin
+						nex_state = CHANGE_STATE0_LOAD;
+					end
+					else if(iSlot0)begin
+						nex_state = CHANGE_STATE0;
+						
+					end
+				end
+				CHANGE_STATE1_LOAD: begin
+					if(iDone) begin
+						nex_state = IDLE;
+					end
+					else if(!iDone)begin
+						nex_state = CHANGE_STATE1_LOAD;
+					end
+				end
+				CHANGE_STATE1: begin
+					if(!iSlot1)begin
+						nex_state = CHANGE_STATE1_LOAD;
+					end
+					else if(iSlot1)begin
+						nex_state = CHANGE_STATE1;
+						
+					end
+				end
 				MOVE:
 					begin
 						if (iDone) nex_state = WAIT;
@@ -92,12 +140,11 @@ module drawingControlPath(
 						if (iDone) nex_state = IDLE;
 						else nex_state = CLEAR;
 					end
-					
 				// After reset of mouse, always go to IDLE state
 				RESET_MOUSE: nex_state = IDLE;
 				
 				// Should default to idle state
-				default: nex_state = CLEAR;
+				default: nex_state = IDLE;
 			endcase
 		end
 		
@@ -107,7 +154,8 @@ module drawingControlPath(
 			// Default signal values
 			oStartTransmission = 0;
 			oEnableMouse = 1;
-			
+			oDatapathSelect = 0;
+
 			case (cur_state)				
 				// Send signal to disable mouse before clearing screen (currently disabled)
 				/*CLEAR_WAIT:
@@ -122,6 +170,22 @@ module drawingControlPath(
 						oStartTransmission = 1;
 						oEnableMouse = 1;
 					end
+				// Datapath to use signals from should be memory datapath
+				CHANGE_STATE0: begin
+					oDatapathSelect = 1;
+				end
+				CHANGE_STATE0_LOAD:begin
+					 oDatapathSelect = 1;
+				end
+				CHANGE_STATE1: 
+					begin
+						oDatapathSelect = 1;
+					end
+				CHANGE_STATE1_LOAD:
+					begin
+						oDatapathSelect = 1;
+					end
+				
 			endcase
 		end
 		
