@@ -1,20 +1,48 @@
 # FPGArt
 ### Created by Zachary Mar and James Zhang
-Drawing tool for the DE1-SoC FPGA and VGA output created using Verilog. The program is designed for a 640 x 480 display. The canvas is divded into a grid of 5px by 5px cells. Users use a PS2 Mouse to interface with the program. Right clicking draws in the selected colour and left clicking erases. Program allows users to save screen captures to off chip memory and load screen captures saved in memory.
+Drawing tool for the DE1-SoC FPGA created using Verilog. The canvas is displayed via VGA port and is 320px by 240px with 9-bit colour. Users use a PS2 Mouse to interface with the program. Right clicking draws in the selected colour and left clicking erases. Colours are selected by using the on board switches. The keys on the board are used to select the save slot the user is drawing to. The program supports up to two separate save slots.
 
-## Outline
+## Demo Video
+Watch the demo video on Youtube!
 
-<ins>Quick Links to Module Descriptions:</ins>
+[![Watch the video](https://img.youtube.com/vi/P_KntpUst0I/default.jpg)](https://youtu.be/P_KntpUst0I)
+
+## Try it Yourself
+Installation instructions:
+1. Download project from Github.
+2. Open Quartus Prime and create a new project.
+3. Add all the project files to the project.
+4. Set the top-level module to FPGArt.v
+5. Add the DE1_SoC.qsf file to assignments.
+6. Compile the project and program the DE1-SoC board
+
+Once programmed, FPGArt should be ready to use. Always begin by resetting the program by pressing KEY0.
+
+Program I/O:
+- KEY0: Reset the program (Will erase both save slots!)
+- KEY1: Select save slot 0
+- KEY2: Select save slot 1
+- KEY4: Clear current save slot
+- SW[9:7]: Intensity of red
+- SW[6:4]: Intensity of green
+- SW[3:1]: Intensity of blue
+- 7-Segment Display: Shows the (x,y) position of the cursor in decimal
+- PS2 Mouse: Left click to draw in select colour. Right click to erase.
+
+## Module Descriptions
+
+The following are key modules in this program. Given is a brief description and port connections to these modules (if applicable). Excluded are modules used to connect these modules together including mux and other logic circuits.
+
+<ins>Quick Links:</ins>
 - [PS2 Mouse Interface](#ps2-mouse-interface)
-- [Drawing FSM](#drawing-fsm)
+- [Central FSM](#central-fsm)
 - [Drawing Datapath](#drawing-datapath)
-- [Drawing Circuit](#drawing-circuit)
 - [VGA Adapter](#vga-adapter)
+- [7 Segment Display](#7-segment-display)
 
 ### PS2 Mouse Interface
-✅**VERIFIED WORKING IN LAB**✅
 
-Responsible for getting input from mouse and translating it to useable data in the datapath and FSM.
+Responsible for getting input from mouse and translating it to useable data in the datapath and FSM. Streams the mouse button click data and mouse movement data.
 
 <ins>Input parameters:</ins>
 - SCREEN_WIDTH: length of screen in the horizontal direction in pixels
@@ -41,10 +69,9 @@ Responsible for getting input from mouse and translating it to useable data in t
 - cell_x: unsigned integer value representing selected cell in the x direction
 - cell_y: unsigned integer value representing selected cell in the y direction
 
-### Drawing FSM
-🟢**WORKING SIMULATION**
+### Central FSM
 
-Responsible for controling the data used to draw to the output monitor and enabling mouse streaming.
+Responsible for determining correct datapath signals to be used (i.e chooses which signals are valid from either drawing datapath or memory datapath). Also determines what processes should take place in the program at any given time.
 
 <ins>Port Declarations:</ins>
 
@@ -56,11 +83,14 @@ Responsible for controling the data used to draw to the output monitor and enabl
 - iDone: signal asserted from datapath when process is completed
 - iClear: input from user to clear the screen (intended to be a key press on DE1-SoC)
 - iMove: signal asserted from datapath when movement of mouse is detected
+- iSlot0: signal asserted when loading data from save slot 0
+- iSlot1: signal asserted when loading data from save slot 1
 
 **Output:**
 - oState: output signal indicating current state
 - oEnableMouse: signal asserted to enable (1) or disable (0) mouse streaming
 - oStartTransmission: signal asserted to initiate host-to-mouse communication
+- oDatapathSelect: lets program know to use drawing datapath signals (0) or memory datapath signals (1)
 
 <ins>States</ins>
 - IDLE (0): Central state. Listens for inputs into FSM to transition states.
@@ -72,13 +102,17 @@ Responsible for controling the data used to draw to the output monitor and enabl
 - CLEAR_WAIT (6): State entered from IDLE when iClear is asserted. Acts as buffer state waiting for iClear to be de-asserted before clearing. Disables mouse.
 - CLEAR (7): State entered from CLEAR_WAIT after iClear is de-asserted. Redraws the whole screen to be the default (blank cells with outlines).
 - RESET_MOUSE (8): Buffer state that sends enable signal to mouse. Should be used after state where mouse is disabled. Transitions to IDLE.
+- CHANGE_STATE0 (9): State entered when iSlot0 signal asserted. Program remains idle until iSlot0 is deasserted.
+- CHANGE_STATE0_LOAD (10): State entered from (9) after iSlot0 is deasserted. Displays slot 0 from BRAM to VGA. Changes the chip select to write/read from slot 0.
+- CHANGE_STATE1 (11): State entered when iSlot1 signal asserted. Program remains idle until iSlot1 is deasserted.
+- CHANGE_STATE1_LOAD (12): State entered from (11) after iSlot1 is deasserted. Displays slot 1 from BRAM to VGA. Changes the chip select to write/read from slot 1.
+- RESET STATES (13-16): States entered after iResetn signal deasserted. Clears both save slots and resets mouse. Transitions to (0) after resetting process finished.
 
-**NOTE:** Priority of entering states from IDLE are as follows: MOVE, DRAW, ERASE, CLEAR_WAIT (i.e if multiple inputs are asserted at the same time, priority is given to state first in the list)
+**NOTE:** Priority of entering states from IDLE are as follows: CHANGE_STATE0, CHANGE_STATE1, MOVE, DRAW, ERASE, CLEAR_WAIT (i.e if multiple inputs are asserted at the same time, priority is given to state first in the list)
 
 ### Drawing Datapath
-🟢**WORKING SIMULATION**
 
-Responsible for generating output signals to VGA adapter to correctly draw what the user expects.
+Used to assert signals when in a drawing state. Responsible for simutaneously generating output signals to VGA adapter to correctly draw what the user expects, and write to select memory slot.
 
 <ins>Input Parameters:</ins>
 - SCREEN_WIDTH: width of display monitor in pixels
@@ -101,48 +135,20 @@ Responsible for generating output signals to VGA adapter to correctly draw what 
 - oColour: colour to draw in, outputted to VGA adapter
 - oMove: signal asserted when mouse movement detected, outputted to FSM
 - oPlot: signal asserted to draw to monitor, outputted to VGA adapter
-
-### Drawing Circuit
-🟢**WORKING SIMULATION**
-
-Top level module that allows other modules to interface with the drawing FSM + datapath.
-
-<ins>Input Parameters:</ins>
-- SCREEN_WIDTH: width of display monitor in pixels
-- SCREEN_HEIGHT: height of display monitor in pixels
-
-<ins>Port Declarations:</ins>
-
-**Inputs:**
-- iResetn: Global reset signal
-- iClk: Source clock from DE!-SoC
-- iClear: Signal asserted to begin clearing the screen
-- iColour: Input from the user to select colour to draw in
-- iX_cell: X coordinate of the current cell from the mouse
-- iY_cell: Y coordinate of the current cell from the mouse
-- iLeftbtn: Signal asserted when LMB pressed
-- iRightbtn: Signal asserted when RMB pressed
-
-**Outputs:**
-- oStartTransmission: Signal asserted to initiate host-to-mouse communication
-- oMouseEnable: Signal asserted/de-asserted to send the enable/disable streaming command the mouse
-- oX_pixel: X coordinate of the pixel to draw at
-- oY_pixel: Y coordinate of the pixel to draw at
-- oColour: Colour to draw in
-- oPlot: Asserted/De-asserted to enable/disable drawing to monitor
-
-The drawing circuit is connected to the PS2 Mouse Interface and the VGA adapater. This module is responsible for all logic regarding drawing functionality and generating data used to draw to the monitor.
+- oAddress: calculated memory address of the current pixel being drawn to
+- oWren: write enable signal to memory slot
 
 ### VGA Adapter
-TODO:
-- Connect to drawing circuit and configure inputs to match ports
-- Modify to allow for larger colour range (bonus)
-- Modify to allow for larger screen size display (640 x 480)
-- Modify to allow for loading "saves" from off chip memory
-- Simulate in lab
 
-#### Memory Interface
+Modified VGA Adapter modules provided by the University of Toronto. Modified version allows for larger range of colour display and screen dimensions.
 
-#### Memory Read/Write FSM
+### 7 Segment Display
 
-#### Memory Read/Write Datapath
+Included modules are the BIN2BCD converter and hex decoder. Responsible for converting given binary data on cursor position to decimal and displaying it for the user on the 7 segment displays.
+Utilizes the double dapple algorithm to convert the x and y positions of the mouse cursor to binary coded decimal (BCD). The BCD data is then fed into the hex decoder where it correctly asserts the values to hex displays to the user.
+
+### Memory Interface
+
+### Memory Read/Write FSM
+
+### Memory Read/Write Datapath
