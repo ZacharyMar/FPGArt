@@ -39,10 +39,13 @@ The following are key modules in this program. Given is a brief description and 
 - [Drawing Datapath](#drawing-datapath)
 - [VGA Adapter](#vga-adapter)
 - [7 Segment Display](#7-segment-display)
+- [Memory Interface](#memory-interface)
+- [Memory Read/Write Datapath](#memory-read/write-datapath)
 
 ### PS2 Mouse Interface
 
 Responsible for getting input from mouse and translating it to useable data in the datapath and FSM. Streams the mouse button click data and mouse movement data.
+
 
 <ins>Input parameters:</ins>
 - SCREEN_WIDTH: length of screen in the horizontal direction in pixels
@@ -148,7 +151,41 @@ Included modules are the BIN2BCD converter and hex decoder. Responsible for conv
 Utilizes the double dapple algorithm to convert the x and y positions of the mouse cursor to binary coded decimal (BCD). The BCD data is then fed into the hex decoder where it correctly asserts the values to hex displays to the user.
 
 ### Memory Interface
+Responsible for controlling access and the reading and writing to on-board BRAM memory, while interfacing directly with the ram datapath and indirectly with the drawing controlpath. Two total frame buffers are used (one for each save slot), each corresponding to its block of BRAM indexed by iChipSelect.
 
-### Memory Read/Write FSM
+<ins>Port Declarations:</ins>
 
+**Inputs:**
+- iResetn: active low reset signal used to set default values
+- iClk: source clock from DE1-SoC
+- iChipSelect: input from memory datapath that specifies BRAM block to read/write to
+- iData: input colour data to be written to memory
+- iAddress: input address in memory to write to, directly indexed via x and y coordinates. 
+- iWren: write enable signal asserted by drawing datapath when the current display is to be saved to memory
+
+**Outputs:**
+ - oQ: output bus storing colour information specified by input signals
+   
 ### Memory Read/Write Datapath
+Responsible for interfacing with the ram controller module and VGA adapter module to write a frame buffer from memory to the display, and from the display back to memory (save and load). 
+
+<ins>Input Parameters:</ins>
+- SCREEN_WIDTH: width of display monitor in pixels
+- SCREEN_HEIGHT: height of display monitor in pixels
+
+<ins>Port Declarations:</ins>
+
+**Inputs:**
+- iResetn: active low reset signal used to set default values
+- iClk: source clock from DE1-SoC
+- iState: current state inputted from the FSM
+- iQ_ram: data read from memory specified at port oAddress inputted into the datapath
+
+**Outputs:**
+- ox: horizontal x location of pixel to draw from memory, outputted to VGA adapter
+- oy: vertical y location of pixel to draw from memory, outputted to VGA adapter
+- oDone: signal asserted when process is completed, outputted to FSM
+- oAddress_ram: address passed to memory controller to specify read/write location
+- oChipSelect: ChipSelect signal passed in to memory controller specifying which frame buffer (BRAM block) to perform write/read operations on
+- oColour: 9 bit colour bus outputted to VGA controller read from memory
+- oPlot: signal asserted to draw to monitor, outputted to VGA adapter
